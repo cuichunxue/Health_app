@@ -342,6 +342,15 @@ const CONFIG = Object.freeze({
   MIN_N_RULE: 5,                // 個人ルールを確定するのに必要な各群の最小サンプル
   MIN_DELTA_RULE: 0.10,         // 差がこれ未満のルールは採用しない
   MIN_N_H1: 20,                 // H1 判定に必要な各アームの最小サンプル
+  /* 対照群の割合。50%にすると H1 は速く固まるが、学習に使える日が半減して
+     H2（個人ルールの確定）が極端に遅くなる。同一利用者内で両方を全力で回すことは
+     できないため、学習側に寄せた 30% を既定とする。
+     健保パイロットでは利用者間でランダム割付し、各人の学習を削らないこと。 */
+  CONTROL_SHARE: 0.30,
+  /* 直近に出した行動を出しにくくする窓。探索がないと学習データが1点に偏り、
+     比較群が育たないため、変化は学習速度そのものに効く。 */
+  RECENCY_WINDOW: 7,
+  RECENCY_MAX_PENALTY: 22,
   MIN_DAYS_H2: 40,
   MIN_DAYS_H3: 84,
   K_ANONYMITY: 5,               // 事業主向け集計の最小人数
@@ -468,15 +477,39 @@ function feasibility(a, ctx){
   return {ok:true};
 }
 
+/** 直近に提示した行動ほど重い減点を返す。連日同じ行動を出さないための探索。
+    refKey は基準日。既定は今日だが、検証時に任意の日を基準にできる。 */
+function recencyWeights(refKey){
+  const base = refKey || today();
+  const w = {};
+  for(let i=1; i<=CONFIG.RECENCY_WINDOW; i++){
+    const r = state.days[addDays(base, -i)];
+    if(r && r.actionId) w[r.actionId] = (w[r.actionId]||0) + (CONFIG.RECENCY_WINDOW + 1 - i);
+  }
+  return w;
+}
+
 /** Execution Fit。Gate を通過した候補の「今日やれそうか」だけを採点する。 */
-function fitScore(a, ctx, rules){
+function fitScore(a, ctx, rules, recency){
   const parts = [];
   let s = 50;
-  const slack = ctx.availableMin - a.min;
-  const slackPts = Math.min(slack, 12);
-  s += slackPts;
-  if(slackPts > 0) parts.push({label:`時間に${slack}分の余裕`, pts:slackPts});
-  if(!a.travel){ s += 6; parts.push({label:'移動が不要', pts:6}); }
+  const rw = (recency && recency[a.id]) || 0;
+  if(rw > 0){
+    const pen = Math.min(CONFIG.RECENCY_MAX_PENALTY, Math.round(rw * 1.6));
+    s -= pen;
+    parts.push({label:'最近も出した', pts:-pen});
+  }
+  /* 収まり具合は「無理なく入るか」で評価し、余裕の大きさには比例させない。
+     余裕に比例させると 1分の行動が常に最上位になり、提示が1つに退化して
+     他の行動のデータが二度と集まらなくなる（実測で全提示の64%が同一行動に偏った）。 */
+  const ratio = a.min / Math.max(1, ctx.availableMin);
+  const fitPts = ratio <= 0.7 ? 8 : ratio <= 1 ? 4 : 0;
+  s += fitPts;
+  parts.push({label: ratio <= 0.7 ? '時間に余裕をもって収まる' : '時間内に収まる', pts:fitPts});
+
+  /* 移動不要は、外出できない日にだけ価値がある。常時加点すると外出を伴う行動が
+     永久に選ばれず、その群の学習データが 0 件のままになる。 */
+  if(!a.travel && !ctx.canGoOut){ s += 5; parts.push({label:'移動が不要', pts:5}); }
 
   for(const r of rules){
     if(r.matches(a, ctx)){ s += r.pts; parts.push({label:r.label, pts:r.pts}); }
@@ -488,26 +521,29 @@ function fitScore(a, ctx, rules){
   return {score:s, parts};
 }
 
-/** 今日の提示を決める。arm='fixed' なら文脈を無視した固定メニュー。 */
-function selectAction(ctx, arm, excludeIds){
+/** 今日の提示を決める。arm='fixed' なら文脈を無視した固定メニュー。
+    refKey は基準日（既定は今日）。検証で過去日を再現するために外から渡せる。 */
+function selectAction(ctx, arm, excludeIds, refKey){
+  const base = refKey || today();
   const exclude = new Set(excludeIds||[]);
   const gated = gatedLibrary();
   const excludedByGate = ACTION_LIBRARY.length - gated.length;
 
   if(arm === 'fixed'){
-    const id = FIXED_PLAN[dowOf(today())];
+    const id = FIXED_PLAN[dowOf(base)];
     const a = ACTION_LIBRARY.find(x=>x.id===id);
     return {action:a, score:null, parts:[], excludedByGate, infeasible:[], candidates:[]};
   }
 
-  const rules = activeRules();
+  const rules = [...activeRules(), ...explorationBoosts()];
+  const recency = recencyWeights(base);
   const infeasible = [];
   const scored = [];
   for(const a of gated){
     if(exclude.has(a.id)) continue;
     const f = feasibility(a, ctx);
     if(!f.ok){ infeasible.push({a, why:f.why}); continue; }
-    scored.push({a, ...fitScore(a, ctx, rules)});
+    scored.push({a, ...fitScore(a, ctx, rules, recency)});
   }
   scored.sort((x,y)=> y.score - x.score || y.a.hv - x.a.hv);
   const top = scored[0] || null;
@@ -648,6 +684,26 @@ function ruleStat(r){
   return `該当 ${g.hitN}日 ${pct(g.hitR)} / その他 ${g.othN}日 ${pct(g.othR)}`;
 }
 
+/* 学習のための探索。
+   エンジンは自分が選んだ行動の結果しか観測できないため、放っておくと得意な
+   一群だけを出し続け、比較群が育たず、そのルールは永久に確定しない
+   （実測: 移動を伴う行動が90日で3日しか出ず、判定不能のままだった）。
+   比較群のデータが不足している間だけ、その群の候補を押し上げる。
+   Gate と実行可能性は一切迂回しない。順位を入れ替えるだけ。 */
+function explorationBoosts(){
+  const logs = completedDays().filter(d => d.arm === 'adaptive');
+  if(logs.length < 3) return [];
+  const N = CONFIG.MIN_N_RULE, PTS = 12, out = [];
+  const short = logs.filter(d => d.min <= 10).length;
+  const noTrav = logs.filter(d => d.travel === false).length;
+  const add = (cond, matches) => { if(cond) out.push({label:'まだ試せていない条件', pts:PTS, matches}); };
+  add(logs.length - short  < N, a => a.min > 10);
+  add(short                < N, a => a.min <= 10);
+  add(logs.length - noTrav < N, a => a.travel === true);
+  add(noTrav               < N, a => a.travel === false);
+  return out;
+}
+
 /** スコアに反映するのは判定が確定したルールだけ。逆方向に出た場合は、
     その向きのまま反映する（都合のよい向きだけ採用しない）。 */
 function activeRules(){
@@ -666,7 +722,7 @@ function ensureToday(){
   if(state.days[k]) return state.days[k];
 
   const ctx = currentContext();
-  const arm = state.experimentOn ? (Math.random() < 0.5 ? 'adaptive' : 'fixed') : 'adaptive';
+  const arm = state.experimentOn ? (Math.random() < CONFIG.CONTROL_SHARE ? 'fixed' : 'adaptive') : 'adaptive';
   const sel = selectAction(ctx, arm);
   const a = sel.action;
 
@@ -678,7 +734,8 @@ function ensureToday(){
     fit: sel.score, why: sel.parts,
     excludedByGate: sel.excludedByGate,
     infeasibleCount: sel.infeasible.length,
-    done:null, reason:null, switched:false, offeredAt:new Date().toISOString()
+    done:null, reason:null, switched:false, offeredAt:new Date().toISOString(),
+    rejected:[]   // その日に「難しい」と言われた行動。再提示しないために貯める。
   };
   state.days[k] = rec;
   saveState();
@@ -697,7 +754,8 @@ function recordOutcome(done, reasonId){
 function switchToAlternative(action, reasonId){
   const rec = state.days[today()];
   if(!rec) return;
-  rec.originalActionId = rec.actionId;
+  if(!rec.originalActionId) rec.originalActionId = rec.actionId;
+  rec.rejected = [...new Set([...(rec.rejected||[]), rec.actionId].filter(Boolean))];
   rec.actionId = action.id;
   rec.min = action.min; rec.cat = action.cat; rec.travel = action.travel; rec.hv = action.hv;
   rec.switched = true;
@@ -706,7 +764,25 @@ function switchToAlternative(action, reasonId){
   saveState();
 }
 
-/* ---------- 8. METRICS ---------- */
+/* ---------- 8. METRICS ----------
+   実行率には2つの母数がある。両方を出し、どちらの話をしているか常に明示する。
+     提示日ベース … 提示して可否が決まった日のうち実行できた割合。エンジンの性能。
+     暦日ベース  … 経過した暦日のうち実行できた割合。健保が完了率として見る数字。
+   アプリを開かなかった日は前者の母数から抜けるため、前者だけを見ると必ず過大になる。 */
+function programStatus(){
+  const elapsed  = state.startDate ? daysSinceStart() + 1 : 0;
+  const dayNo    = Math.min(elapsed, CONFIG.PROGRAM_DAYS);
+  const doneDays = Object.values(state.days).filter(d => d.done === true).length;
+  const needed   = Math.ceil(CONFIG.PROGRAM_DAYS * CONFIG.PROGRAM_COMPLETION_RATE);
+  const finished = elapsed > CONFIG.PROGRAM_DAYS;
+  return {
+    elapsed, dayNo, doneDays, needed, finished,
+    completed: doneDays >= needed,
+    daysLeft: Math.max(0, CONFIG.PROGRAM_DAYS - elapsed + 1),
+    stillPossible: doneDays + Math.max(0, CONFIG.PROGRAM_DAYS - elapsed + 1) >= needed
+  };
+}
+
 function metrics(){
   const all = completedDays();
   const adaptive = all.filter(d=>d.arm==='adaptive');
@@ -741,7 +817,15 @@ function metrics(){
 
   const gateExcluded = ACTION_LIBRARY.filter(a=>!passesGate(a));
 
-  return {all, adaptive, fixed, rA, rF, lift, reasonCounts, h1, h2, h3, gateExcluded, sorted};
+  // 暦日ベース。開かなかった日も母数に入れる。
+  const prog = programStatus();
+  const openedDays = Object.keys(state.days).length;
+  const missedDays = Math.max(0, prog.elapsed - openedDays);
+  const calendarRate = prog.elapsed ? prog.doneDays / prog.elapsed : null;
+  const offerRate = rate(all);   // 提示日ベース（= アプリ内部の実行率）
+
+  return {all, adaptive, fixed, rA, rF, lift, reasonCounts, h1, h2, h3, gateExcluded, sorted,
+          prog, openedDays, missedDays, calendarRate, offerRate};
 }
 
 function weekWindow(){
@@ -779,9 +863,11 @@ function renderToday(){
   const rec = ensureToday();
   const a = ACTION_LIBRARY.find(x=>x.id===rec.actionId);
 
-  // プログラム進捗チップ
-  const dayNo = Math.min(daysSinceStart()+1, CONFIG.PROGRAM_DAYS);
-  $('progChip').textContent = `${dayNo}日目 / ${CONFIG.PROGRAM_DAYS}`;
+  // プログラム進捗チップ（90日を過ぎたら終了状態を出す）
+  const ps = programStatus();
+  $('progChip').textContent = ps.finished
+    ? (ps.completed ? `プログラム完了 ✓` : `プログラム終了 ${ps.doneDays}/${ps.needed}日`)
+    : `${ps.dayNo}日目 / ${CONFIG.PROGRAM_DAYS}`;
 
   if(!a){
     $('actionTitle').textContent = '今日は提示できる行動がありません';
@@ -975,12 +1061,18 @@ $('adaptBtn').onclick = ()=>{
     return;
   }
 
+  // その日に断られた行動はすべて除外する（同じ2つを往復させない）
+  const rejected = rec ? [...new Set([...(rec.rejected||[]), rec.actionId].filter(Boolean))] : [];
+  if(rec){ rec.rejected = rejected; saveState(); }
+
   const ctx = pickedReason.apply(currentContext());
-  const sel = selectAction(ctx, 'adaptive', rec ? [rec.actionId] : []);
+  const sel = selectAction(ctx, 'adaptive', rejected);
   if(!sel.action){
     $('altCard').classList.remove('show');
     const n = $('altNone');
-    n.textContent = `その条件だと、健康価値の基準（${CONFIG.HEALTH_VALUE_THRESHOLD}点以上）を満たす候補が残りませんでした。基準を下げてまで提示することはしません。今日は休みにして、明日また合わせます。`;
+    n.textContent = rejected.length > 1
+      ? `今日はここまでにしましょう。条件に合って、健康価値の基準（${CONFIG.HEALTH_VALUE_THRESHOLD}点以上）も満たす候補を出しきりました。基準を下げてまで提示することはしません。明日また合わせます。`
+      : `その条件だと、健康価値の基準（${CONFIG.HEALTH_VALUE_THRESHOLD}点以上）を満たす候補が残りませんでした。基準を下げてまで提示することはしません。今日は休みにして、明日また合わせます。`;
     n.classList.add('show');
     recordOutcome(false, pickedReason.id);
     return;
@@ -1020,7 +1112,7 @@ function renderProgress(){
     rd.textContent = `直近4週の記録 ${last28.length}日`;
     rd.className = 'delta';
   }else{
-    $('rate4w').innerHTML = `${pct(rate(last28))} <small>直近4週 / ${last28.length}日</small>`;
+    $('rate4w').innerHTML = `${pct(rate(last28))} <small>提示された${last28.length}日のうち</small>`;
     if(prev28.length < 4){
       rd.textContent = '前の4週は記録不足';
       rd.className = 'delta';
@@ -1059,24 +1151,43 @@ function renderProgress(){
 
   // プログラム
   const pc = $('programCard'); pc.textContent='';
-  const dayNo = Math.min(daysSinceStart()+1, CONFIG.PROGRAM_DAYS);
-  const doneCount = m.all.filter(d=>d.done===true).length;
-  const needed = Math.ceil(CONFIG.PROGRAM_DAYS * CONFIG.PROGRAM_COMPLETION_RATE);
+  const ps = m.prog;
   const top = el('div','progress-top');
-  top.append(el('div','big', `${doneCount} 日`));
-  const dd = el('div','delta', `完了まで あと ${Math.max(0, needed-doneCount)} 日`);
-  if(doneCount>=needed){ dd.textContent='完了条件を満たしました'; dd.className='delta up'; }
+  top.append(el('div','big', `${ps.doneDays} 日`));
+  const dd = el('div','delta');
+  if(ps.finished){
+    dd.textContent = ps.completed ? '完了条件を満たして終了' : `未達で終了（${ps.needed}日必要）`;
+    dd.className = 'delta' + (ps.completed ? ' up' : '');
+  }else if(ps.completed){
+    dd.textContent = '完了条件を満たしました'; dd.className = 'delta up';
+  }else if(!ps.stillPossible){
+    dd.textContent = `残り${ps.daysLeft}日では条件に届きません`; dd.className = 'delta';
+  }else{
+    dd.textContent = `完了まで あと ${ps.needed - ps.doneDays} 日`; dd.className = 'delta';
+  }
   top.append(dd);
   pc.append(top);
+
   const bars = el('div','bars');
   const row = el('div','brow');
   row.append(el('div','lab','進捗'));
   const tr = el('div','track'); const fl = el('div','fill');
-  fl.style.width = Math.min(100, (doneCount/needed)*100) + '%';
+  fl.style.width = Math.min(100, (ps.doneDays/ps.needed)*100) + '%';
   tr.append(fl); row.append(tr);
-  row.append(el('div','val', `${dayNo}/${CONFIG.PROGRAM_DAYS}日`));
+  row.append(el('div','val', ps.finished ? '終了' : `${ps.dayNo}/${CONFIG.PROGRAM_DAYS}日`));
   bars.append(row); pc.append(bars);
-  pc.append(el('div','microcopy', `完了の目安は、90日のうち ${needed} 日以上の実行です。毎日やる必要はありません。`));
+
+  pc.append(el('div','microcopy', ps.finished
+    ? (ps.completed
+        ? `90日間で ${ps.doneDays} 日実行し、完了条件（${ps.needed}日）を満たしました。次のプログラムは、この記録から組み立てます。`
+        : `90日間の実行は ${ps.doneDays} 日で、完了条件（${ps.needed}日）には届きませんでした。続かなかった条件は記録に残っています。次はそこを外して組みます。`)
+    : `完了の目安は、90日のうち ${ps.needed} 日以上の実行です。毎日やる必要はありません。`));
+
+  // 暦日ベースの数字も併記する（開かなかった日も母数に入れる）
+  if(ps.elapsed > 0){
+    pc.append(el('div','microcopy',
+      `経過 ${ps.elapsed}日のうち実行 ${ps.doneDays}日（${pct(m.calendarRate)}）。うち ${m.missedDays}日はアプリを開いていません。`));
+  }
 
   // パターン
   const pl = $('patternList'); pl.textContent='';
@@ -1253,6 +1364,21 @@ function paneEngine(m){
   );
   f.append(counts);
 
+  // 母数の違いを隠さない。提示日ベースだけを見ると必ず過大になる。
+  const denom = el('div');
+  const dg = el('div','grid');
+  const gap = (m.offerRate!==null && m.calendarRate!==null) ? (m.offerRate - m.calendarRate) : null;
+  dg.append(
+    m.offerRate!==null ? metricTile(pct(m.offerRate),'実行率（提示日ベース）') : metricTile('判定不能','実行率（提示日ベース）','na'),
+    m.calendarRate!==null ? metricTile(pct(m.calendarRate),'実行率（暦日ベース）') : metricTile('判定不能','実行率（暦日ベース）','na'),
+    metricTile(String(m.missedDays),`未開封日（経過 ${m.prog.elapsed}日中）`),
+    gap!==null ? metricTile(`${gap>=0?'+':''}${(gap*100).toFixed(1)}pt`,'提示日ベースの過大分', gap>0.02?'':'') : metricTile('—','提示日ベースの過大分','na')
+  );
+  denom.append(dg);
+  f.append(panel('母数の違い', denom, el('p',null,
+    '健保・企業が完了率として見るのは暦日ベース。アプリを開かなかった日は「実行しなかった日」であり、母数から抜いてはならない。'+
+    '社外へ出す数字は、必ず暦日ベースを使うこと。')));
+
   const pipe = el('div','pipe');
   const steps = [['Action Library',0],['Health Value Gate',1],['Context',0],['Execution Fit',0],['Today One',0],['実行/未実行',0],['Reason Classifier',1],['Rule Update',0]];
   steps.forEach(([label,key],i)=>{
@@ -1361,7 +1487,8 @@ function paneExperiment(m){
     tbl.innerHTML = `<thead><tr><th>階層</th><th>指標</th><th class="n">現在値</th><th class="n">目標</th></tr></thead>`;
     const tb = el('tbody');
     const rows = [
-      ['主要','実行日数の到達率（90日中）', m.all.length ? `${m.all.filter(d=>d.done).length}日 / 54日` : '—', '54日'],
+      ['主要','プログラム完了（暦日ベース）', `${m.prog.doneDays}日 / ${m.prog.needed}日`, `${m.prog.needed}日`],
+      ['主要','実行率（暦日ベース）', m.calendarRate!==null ? `${pct(m.calendarRate)}（経過${m.prog.elapsed}日）` : '—', '60%'],
       ['副次','12週継続率', m.adaptive.length>=12 ? `${pct(m.rA)}（n=${m.adaptive.length}）` : '判定不能', '60%'],
       ['副次','Gate 通過行動のみでの実行率', m.adaptive.length>=CONFIG.MIN_N_H1 ? `${pct(m.rA)}（n=${m.adaptive.length}）` : '判定不能', '70%'],
       ['学習','個人ルール確定までの日数', (()=>{ const c = derivedRules().filter(r=>r.status==='confirmed').length; return c? `${m.all.length}日で${c}件` : '未確定'; })(), '21日以内']
