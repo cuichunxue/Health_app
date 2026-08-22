@@ -1,0 +1,1496 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Today One</title>
+<style>
+:root{
+  --bg:#f4f6f3; --card:#fff; --ink:#16211b; --ink2:#3f4f45; --muted:#6d7d74;
+  --line:#e0e7e2; --brand:#196b4a; --brand-ink:#0e3d29; --brand-soft:#e6f2ec;
+  --soft:#f6faf7; --warn:#9a5716; --warn-soft:#f6e9d8; --danger:#a8434e;
+  --shadow:0 10px 32px rgba(20,45,31,.07); --r:20px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#101613; --card:#18201b; --ink:#e7eee8; --ink2:#c0cac2; --muted:#8b9a90;
+    --line:#27322b; --brand:#5cba8c; --brand-ink:#c2e8d3; --brand-soft:#182f24;
+    --soft:#141c17; --warn:#dda263; --warn-soft:#352716; --danger:#d98b93;
+    --shadow:0 10px 32px rgba(0,0,0,.32);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-font-smoothing:antialiased; font-feature-settings:"palt" 1;
+}
+button{font:inherit;cursor:pointer;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.app{max-width:430px;margin:auto;min-height:100vh;background:var(--bg);padding-bottom:96px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 4px;gap:12px}
+.brand{font-weight:900;letter-spacing:-.2px;font-size:15px}
+.brand span{color:var(--brand)}
+.hello{font-size:11px;color:var(--muted);margin-top:2px}
+.prog-chip{
+  font-size:10px;color:var(--brand-ink);background:var(--brand-soft);
+  border-radius:999px;padding:6px 11px;font-weight:800;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.screen{display:none;padding:6px 16px 24px}
+.screen.active{display:block}
+h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
+.sub{font-size:12.5px;color:var(--muted);line-height:1.7;margin:0 0 14px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.action-card{padding:20px;margin-top:12px}
+.kicker{font-size:10px;color:var(--brand);font-weight:900;letter-spacing:.1em}
+.action{font-size:27px;font-weight:900;letter-spacing:-.7px;margin:8px 0 5px;line-height:1.3}
+.action-sub{font-size:11.5px;color:var(--muted);line-height:1.65}
+.arm-tag{
+  display:inline-block;margin-top:9px;font-size:9.5px;font-weight:800;letter-spacing:.08em;
+  padding:3px 8px;border-radius:5px;background:var(--soft);color:var(--muted);border:1px solid var(--line);
+}
+.action-visual{
+  height:132px;border-radius:16px;margin:15px 0;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,var(--brand-soft),var(--soft));
+}
+.sun{position:absolute;right:28px;top:20px;width:46px;height:46px;background:#ffd77e;border-radius:50%;box-shadow:0 0 0 12px rgba(255,215,126,.13)}
+.hill{position:absolute;bottom:-54px;width:290px;height:126px;border-radius:50%;background:#9bcea6;left:-64px;opacity:.85}
+.hill2{position:absolute;bottom:-46px;width:252px;height:108px;border-radius:50%;background:#6fb886;right:-112px;opacity:.85}
+.glyph{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);font-size:44px;z-index:2}
+
+.primary{width:100%;border:0;border-radius:14px;background:var(--brand);color:#fff;padding:15px 16px;font-weight:900;font-size:15.5px;box-shadow:0 6px 16px rgba(25,107,74,.16)}
+.primary:disabled{opacity:.45;box-shadow:none;cursor:default}
+.secondary{width:100%;border:1px solid var(--line);border-radius:14px;background:var(--soft);color:var(--ink2);padding:13px 16px;font-weight:800;margin-top:9px;font-size:14px}
+.link{border:0;background:transparent;color:var(--brand);font-size:11px;font-weight:800;padding:11px 0 0}
+.reason-box{display:none;margin-top:11px;padding:13px;border-radius:13px;background:var(--soft);border:1px solid var(--line);font-size:11.5px;line-height:1.75;color:var(--ink2)}
+.reason-box.show{display:block}
+.reason-box dl{margin:9px 0 0;display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px}
+.reason-box dt{color:var(--muted)}
+.reason-box dd{margin:0;font-variant-numeric:tabular-nums}
+
+.quick-state{display:flex;gap:7px;margin-top:13px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.state-chip{min-width:max-content;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 11px;font-size:10.5px;color:var(--muted)}
+.state-chip b{color:var(--ink);font-weight:800}
+
+.section{margin-top:20px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px;gap:10px}
+.section-title{font-size:15px;font-weight:900}
+.section-note{font-size:9.5px;color:var(--muted);text-align:right}
+
+.progress-card{padding:17px}
+.progress-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.big{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
+.big small{font-size:11px;color:var(--muted);font-weight:700}
+.delta{font-size:10.5px;font-weight:800;color:var(--muted)}
+.delta.up{color:var(--brand)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;align-items:end;height:112px;margin-top:14px}
+.day{height:100%;display:grid;grid-template-rows:1fr auto;gap:6px}
+.barwrap{display:flex;align-items:end;justify-content:center}
+.bar{width:70%;background:var(--line);border-radius:7px 7px 4px 4px;position:relative;min-height:5px}
+.bar.done{background:linear-gradient(180deg,#53aa7d,var(--brand))}
+.bar.done:after{content:"✓";position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--brand);font-weight:900}
+.bar.today{outline:2px dashed var(--brand);outline-offset:2px}
+.day span{text-align:center;color:var(--muted);font-size:9px}
+.microcopy{margin-top:12px;font-size:10.5px;color:var(--muted);line-height:1.7}
+
+.insight-card{padding:14px 16px}
+.insight{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.insight:last-child{border-bottom:0}
+.ico{width:34px;height:34px;flex:none;border-radius:10px;background:var(--brand-soft);display:grid;place-items:center;font-size:15px}
+.insight b{font-size:11.5px;display:block}
+.insight p{font-size:10px;color:var(--muted);margin:4px 0 0;line-height:1.6}
+.insight .n{font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:3px;display:block}
+
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.choice{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 11px;text-align:left;font-size:11px;color:var(--ink2);line-height:1.5}
+.choice.active{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-ink);font-weight:800}
+.alt-card{display:none;margin-top:12px;padding:16px;background:var(--soft);border:1px solid var(--line);border-radius:16px}
+.alt-card.show{display:block}
+.alt-card .t{font-size:17px;font-weight:900;margin:7px 0 4px}
+.alt-none{display:none;margin-top:12px;padding:16px;background:var(--warn-soft);border-radius:16px;font-size:11.5px;line-height:1.75;color:var(--warn)}
+.alt-none.show{display:block}
+
+.bottom{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);
+  background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);z-index:20;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.nav{border:0;background:transparent;color:var(--muted);font-size:9.5px;display:grid;place-items:center;gap:2px;padding:13px 0 12px;font-weight:700}
+.nav b{font-size:18px;font-weight:500;line-height:1}
+.nav.on{color:var(--brand);font-weight:900}
+.toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(12px);
+  background:#152d22;color:#fff;padding:11px 16px;border-radius:999px;font-size:11px;
+  opacity:0;transition:.2s;z-index:30;pointer-events:none;max-width:88vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{padding:22px;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.8}
+.done-state{display:none;text-align:center;padding:6px 0 2px}
+.done-state.show{display:block}
+.done-state .mk{font-size:34px}
+.done-state p{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.7}
+
+/* ---------- admin console ---------- */
+.console{display:none;position:fixed;inset:0;z-index:99;background:var(--bg);overflow:auto;padding:20px 16px 60px}
+.console.show{display:block}
+.cwrap{max-width:1060px;margin:auto}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.chead h2{font-size:18px;margin:0;font-weight:900}
+.chead .s{font-size:10.5px;color:var(--muted);margin-top:3px}
+.cbtn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 13px;font-weight:800;font-size:12px}
+.cbtn.danger{color:var(--danger);border-color:var(--danger)}
+.banner{border-radius:12px;padding:13px 15px;font-size:11.5px;line-height:1.75;margin-top:14px;border:1px solid transparent}
+.banner.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.banner.info{background:var(--brand-soft);color:var(--brand-ink)}
+.ctabs{display:flex;gap:7px;margin-top:16px;flex-wrap:wrap}
+.ctab{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px 13px;font-size:11.5px;font-weight:800;color:var(--muted)}
+.ctab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.cpane{display:none;margin-top:16px}
+.cpane.on{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px}
+.metric .v{font-size:25px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.15}
+.metric .v.pos{color:var(--brand)}
+.metric .v.na{color:var(--muted);font-size:15px;font-weight:800}
+.metric .k{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.5}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px;margin-top:12px}
+.panel h3{font-size:12.5px;margin:0 0 11px;font-weight:900}
+.panel p{font-size:11px;color:var(--muted);line-height:1.75;margin:0}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;line-height:1.6;color:var(--ink2)}
+thead th{background:var(--soft);color:var(--ink);font-weight:800;white-space:nowrap;font-size:10.5px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.excluded td{color:var(--muted);background:var(--soft)}
+tr.excluded td:first-child{text-decoration:line-through}
+.pill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.pill.go{background:var(--brand-soft);color:var(--brand-ink)}
+.pill.wait{background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.pill.block{background:var(--warn-soft);color:var(--warn)}
+.gate-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.gate-row:last-child{border-bottom:0}
+.gate-row .id{font-weight:900;font-size:12px;flex:none;width:26px}
+.gate-row .tx{font-size:11px;line-height:1.75;color:var(--ink2);flex:1}
+.gate-row .tx b{color:var(--ink)}
+.pipe{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:10px;font-weight:800;margin-top:4px}
+.pipe .b{background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:7px 9px;white-space:nowrap}
+.pipe .b.key{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink)}
+.pipe .a{color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.brow{display:grid;grid-template-columns:78px 1fr 62px;gap:10px;align-items:center;font-size:10.5px}
+.brow.wide{grid-template-columns:52px 1fr 88px}
+.brow .lab{color:var(--muted)}
+.brow .track{height:9px;background:var(--soft);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.brow .fill{height:100%;background:var(--brand);border-radius:2px 3px 3px 2px}
+.brow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:800}
+.gatebox{background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:12px;font-size:10.5px;line-height:1.85;color:var(--ink2);margin-top:11px}
+.gatebox b{color:var(--ink)}
+.lock{max-width:380px;margin:14vh auto 0;text-align:center}
+.lock h2{font-size:17px;margin:0 0 8px}
+.lock p{font-size:11.5px;color:var(--muted);line-height:1.8;margin:0 0 16px}
+.lock input{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px;text-align:center}
+.lock .err{color:var(--danger);font-size:11px;margin-top:10px;min-height:15px}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="top">
+    <div>
+      <div class="brand"><span>Today</span> One</div>
+      <div class="hello">今日も、1つだけ。</div>
+    </div>
+    <div class="prog-chip" id="progChip">—</div>
+  </div>
+
+  <!-- ===== TODAY ===== -->
+  <section id="today" class="screen active">
+    <h1 id="todayHeadline">今日は、これだけ。</h1>
+    <p class="sub" id="todaySub">いまの状態に合わせて、無理なくできる健康行動を1つだけ選びました。</p>
+
+    <div class="card action-card">
+      <div class="kicker">TODAY'S ONE</div>
+      <div class="action" id="actionTitle">—</div>
+      <div class="action-sub" id="actionSub"></div>
+      <div class="arm-tag" id="armTag" hidden></div>
+
+      <div class="action-visual">
+        <div class="sun"></div><div class="hill"></div><div class="hill2"></div>
+        <div class="glyph" id="actionGlyph">🚶</div>
+      </div>
+
+      <div id="pendingBlock">
+        <button class="primary" id="doneBtn">できた</button>
+        <button class="secondary" id="hardBtn">今日は難しい</button>
+      </div>
+
+      <div class="done-state" id="doneState">
+        <div class="mk" id="doneMark">✓</div>
+        <p id="doneText"></p>
+        <button class="link" id="undoBtn">記録を取り消す</button>
+      </div>
+
+      <button class="link" id="whyBtn">なぜこれ？</button>
+      <div class="reason-box" id="whyBox"></div>
+
+      <div class="quick-state" id="quickState"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">今週</div>
+        <div class="section-note">できた日だけを見る</div>
+      </div>
+      <div class="card progress-card">
+        <div class="progress-top">
+          <div class="big" id="weekCount">0 <small>/ 7日</small></div>
+          <div class="delta" id="weekDelta">—</div>
+        </div>
+        <div class="week" id="weekBars"></div>
+        <div class="microcopy">毎日完璧にやる必要はありません。続けやすい形を一緒に見つけます。</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">わかってきたこと</div>
+        <div class="section-note">あなたの記録から</div>
+      </div>
+      <div class="card insight-card" id="insightList"></div>
+    </div>
+  </section>
+
+  <!-- ===== CHANGE ===== -->
+  <section id="change" class="screen">
+    <h1>今日は何が難しい？</h1>
+    <p class="sub">1つだけ選んでください。できなかった理由ではなく、次の提案を合わせるために使います。</p>
+    <div class="card action-card">
+      <div class="choice-grid" id="choiceGrid"></div>
+      <button class="primary" id="adaptBtn" style="margin-top:13px" disabled>今日に合わせて変える</button>
+      <div class="alt-card" id="altCard">
+        <div class="kicker">LIGHTER OPTION</div>
+        <div class="t" id="altTitle"></div>
+        <p class="microcopy" id="altWhy"></p>
+        <button class="primary" id="useAlt" style="margin-top:11px">これならできそう</button>
+      </div>
+      <div class="alt-none" id="altNone"></div>
+    </div>
+  </section>
+
+  <!-- ===== PROGRESS ===== -->
+  <section id="progress" class="screen">
+    <h1>あなたの「続けやすさ」</h1>
+    <p class="sub">アプリを開いた回数ではなく、健康行動が続いているかを見ます。</p>
+    <div class="card progress-card">
+      <div class="progress-top">
+        <div class="big" id="rate4w">—</div>
+        <div class="delta" id="rateDelta">—</div>
+      </div>
+      <div id="trendWrap"></div>
+      <div class="microcopy" id="trendNote"></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="section-title">プログラム進捗</div><div class="section-note">完了の目安は実行60%</div></div>
+      <div class="card progress-card" id="programCard"></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="section-title">続けやすいパターン</div><div class="section-note">記録が貯まると増えます</div></div>
+      <div class="card insight-card" id="patternList"></div>
+    </div>
+  </section>
+
+  <nav class="bottom">
+    <button class="nav on" data-screen="today"><b>⌂</b>今日</button>
+    <button class="nav" data-screen="change"><b>↻</b>変える</button>
+    <button class="nav" data-screen="progress"><b>↗</b>進歩</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== ADMIN CONSOLE (gated) ===== -->
+<div class="console" id="console">
+  <div class="cwrap" id="consoleBody"></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   Today One — 学習・安全・実験レイヤーを備えた行動提示エンジン
+   ----------------------------------------------------------------------------
+   設計上の不可侵ルール（事業戦略提案書 02章・06章に対応）:
+     1. HEALTH_VALUE_THRESHOLD は実行時に変更できない。プランや課金状態で
+        緩めてはならない。「価格は下げても、基準は下げない」。
+     2. System Constraint（安全上の除外）は、本人 Fit 学習から分離する。
+        学習器は Gate を通過した候補の順位付けだけを行い、Gate 自体を動かさない。
+     3. 個人の行動ログは端末内に留め、事業主へは集計値のみを渡す（k-匿名性）。
+   ========================================================================== */
+
+/* ---------- 1. CONFIG ---------- */
+const CONFIG = Object.freeze({
+  HEALTH_VALUE_THRESHOLD: 70,   // 不可侵。UIからもプランからも変更不可。
+  PROGRAM_DAYS: 90,
+  PROGRAM_COMPLETION_RATE: 0.60,
+  MIN_N_RULE: 5,                // 個人ルールを確定するのに必要な各群の最小サンプル
+  MIN_DELTA_RULE: 0.10,         // 差がこれ未満のルールは採用しない
+  MIN_N_H1: 20,                 // H1 判定に必要な各アームの最小サンプル
+  MIN_DAYS_H2: 40,
+  MIN_DAYS_H3: 84,
+  K_ANONYMITY: 5,               // 事業主向け集計の最小人数
+  STORAGE_KEY: 'todayOne.v3',
+  /* デモ用のクライアント側ゲート。本番はサーバー側認証に置き換えること。 */
+  ADMIN_PASSPHRASE: 'todayone-admin'
+});
+
+/* ---------- 2. ACTION LIBRARY ----------
+   hv = Health Value (0-100)。hvNote は採点根拠で、Gate の監査可能性のために持つ。
+   Gate 未達の行動も意図的にライブラリへ残す（除外が機能していることを示すため）。 */
+const ACTION_LIBRARY = Object.freeze([
+  {id:'walk30',   t:'30分のウォーキング',     cat:'運動', hv:86, min:30, travel:true,  intensity:3, glyph:'🚶', hvNote:'中強度有酸素。週150分の目安を1回で大きく満たす'},
+  {id:'walk20',   t:'20分の早歩き',          cat:'運動', hv:84, min:20, travel:true,  intensity:3, glyph:'🚶', hvNote:'中強度有酸素。週合計150分の目安に直接寄与'},
+  {id:'strength', t:'15分の筋トレ',          cat:'運動', hv:82, min:15, travel:false, intensity:4, glyph:'💪', hvNote:'レジスタンス運動。筋量・基礎代謝の維持に強く効く'},
+  {id:'onestop',  t:'一駅分だけ歩く',        cat:'運動', hv:78, min:15, travel:true,  intensity:2, glyph:'🚉', hvNote:'通勤動線への組み込み。追加の時間確保が要らない'},
+  {id:'shopwalk', t:'買い物は歩いて行く',     cat:'運動', hv:75, min:15, travel:true,  intensity:2, glyph:'🛒', hvNote:'既存の用事と統合。中強度に届きやすい'},
+  {id:'clean15',  t:'15分の掃除機がけ',      cat:'生活', hv:71, min:15, travel:false, intensity:2, glyph:'🧹', hvNote:'家事由来の低〜中強度活動。移動不要で総活動量を稼ぐ'},
+  {id:'radio',    t:'ラジオ体操をする',       cat:'運動', hv:72, min:4,  travel:false, intensity:2, glyph:'📻', hvNote:'全身を短時間で動かす。手順が固定で迷いが出ない'},
+  {id:'walk10',   t:'10分だけ歩く',          cat:'運動', hv:74, min:10, travel:true,  intensity:2, glyph:'🚶', hvNote:'短時間でも有酸素の効果が積み上がる'},
+  {id:'walk5in',  t:'5分だけ室内を歩く',      cat:'運動', hv:71, min:5,  travel:false, intensity:1, glyph:'👟', hvNote:'座位時間の分断。移動不要で下限を確保'},
+  {id:'squat10',  t:'スクワットを10回',       cat:'運動', hv:78, min:3,  travel:false, intensity:3, glyph:'🦵', hvNote:'下肢の筋力維持。短時間で高い価値'},
+  {id:'stairs',   t:'今日は階段を使う',       cat:'運動', hv:73, min:5,  travel:false, intensity:2, glyph:'🪜', hvNote:'日常動作への組み込み。継続性が高い'},
+  {id:'calf20',   t:'かかと上げを20回',       cat:'運動', hv:70, min:2,  travel:false, intensity:1, glyph:'🦶', hvNote:'ふくらはぎのポンプ作用。下限ぎりぎりで通過'},
+  {id:'stretch5', t:'5分ストレッチ',          cat:'運動', hv:64, min:5,  travel:false, intensity:1, glyph:'🧘', hvNote:'柔軟性中心。代謝・循環への寄与が小さく Gate 未達'},
+  {id:'veg1',     t:'野菜を1品足す',          cat:'食事', hv:76, min:5,  travel:false, intensity:1, glyph:'🥗', hvNote:'食物繊維・微量栄養素。加算型で失敗しにくい'},
+  {id:'snackcut', t:'間食を1回だけ減らす',     cat:'食事', hv:75, min:1,  travel:false, intensity:2, glyph:'🍫', hvNote:'エネルギー収支に直接効く。ただし心理的負荷あり'},
+  {id:'slowEat',  t:'ひと口ごとに箸を置く',    cat:'食事', hv:72, min:1,  travel:false, intensity:1, glyph:'🥢', hvNote:'摂食速度の低下が過食抑制に寄与'},
+  {id:'breakfast',t:'朝食にたんぱく質を1つ',   cat:'食事', hv:74, min:5,  travel:false, intensity:1, glyph:'🥚', hvNote:'たんぱく質摂取の分散。筋量維持に寄与'},
+  {id:'water',    t:'コップ1杯の水を飲む',     cat:'食事', hv:58, min:1,  travel:false, intensity:1, glyph:'💧', hvNote:'脱水時以外の健康価値は限定的。Gate 未達'},
+  {id:'screen',   t:'就寝1時間前に画面を消す', cat:'睡眠', hv:79, min:1,  travel:false, intensity:2, glyph:'🌙', hvNote:'入眠潜時の短縮。睡眠の質に強く効く'},
+  {id:'bedfix',   t:'いつもの時刻に布団に入る',cat:'睡眠', hv:77, min:1,  travel:false, intensity:2, glyph:'🛏', hvNote:'就寝時刻の規則化。睡眠負債の蓄積を防ぐ'},
+  {id:'caffcut',  t:'15時以降のカフェインをやめる',cat:'睡眠',hv:73,min:1,travel:false,intensity:2,glyph:'☕', hvNote:'カフェインの半減期を踏まえた入眠改善'},
+  {id:'nap',      t:'20分だけ昼寝する',        cat:'睡眠', hv:66, min:20, travel:false, intensity:1, glyph:'😴', hvNote:'一時的な覚醒度改善に留まる。Gate 未達'},
+  {id:'stand',    t:'1時間ごとに立ち上がる',   cat:'生活', hv:75, min:2,  travel:false, intensity:1, glyph:'🧍', hvNote:'座位の中断。総座位時間の短縮に効く'},
+  {id:'breath',   t:'3分の呼吸法',            cat:'生活', hv:70, min:3,  travel:false, intensity:1, glyph:'🌬', hvNote:'自律神経系への短期効果。下限で通過'},
+  {id:'walkcall', t:'電話は歩きながら受ける',  cat:'生活', hv:72, min:5,  travel:false, intensity:2, glyph:'📞', hvNote:'既存行動への抱き合わせ。追加負荷がほぼゼロ'},
+  {id:'log',      t:'今日の体重を記録する',    cat:'生活', hv:61, min:1,  travel:false, intensity:1, glyph:'⚖️', hvNote:'計測のみでは行動変容にならない。Gate 未達'},
+  {id:'sns',      t:'SNSを5分だけ見る',        cat:'生活', hv:12, min:5,  travel:false, intensity:1, glyph:'📱', hvNote:'健康価値なし。「簡単だから」で通してはならない対照例'},
+  {id:'tvcut',    t:'テレビを30分早く消す',    cat:'睡眠', hv:71, min:1,  travel:false, intensity:2, glyph:'📺', hvNote:'就床時刻の前倒しに直結'}
+]);
+
+/* 固定メニュー（対照群）: 文脈を一切見ずに曜日で決まる、従来型の一律プログラム */
+const FIXED_PLAN = Object.freeze(['walk20','squat10','walk20','veg1','walk20','squat10','walk20']);
+
+/* 未実行理由 → 文脈の補正。Reason Classifier の中身。 */
+const REASONS = Object.freeze([
+  {id:'time',   label:'⏱ 時間がない',      apply:c=>({...c, availableMin:Math.min(c.availableMin,5)})},
+  {id:'tired',  label:'😮‍💨 疲れている',    apply:c=>({...c, energy:'低'})},
+  {id:'place',  label:'🌧 場所・天気',      apply:c=>({...c, canGoOut:false})},
+  {id:'hard',   label:'📈 少し重い',        apply:c=>({...c, maxIntensity:2})},
+  {id:'motiv',  label:'🤔 やる気が出ない',  apply:c=>({...c, availableMin:Math.min(c.availableMin,3), maxIntensity:2})},
+  {id:'life',   label:'🏠 仕事・家庭事情',  apply:c=>({...c, availableMin:Math.min(c.availableMin,5), canGoOut:false})}
+]);
+const REASON_LABEL = Object.fromEntries(REASONS.map(r=>[r.id, r.label]));
+
+/* ---------- 3. STORAGE ---------- */
+const DEFAULT_STATE = {
+  version:3,
+  startDate:null,
+  days:{},                 // 'YYYY-MM-DD' -> record
+  experimentOn:true,       // H1 のランダム割付を行うか
+  hasSynthetic:false,      // デモ用生成データが混入しているか
+  ctxDefaults:{energy:'普通', availableMin:15, canGoOut:false}
+};
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+    if(!raw) return {...DEFAULT_STATE, days:{}};
+    const p = JSON.parse(raw);
+    return {...DEFAULT_STATE, ...p, days:p.days||{}, ctxDefaults:{...DEFAULT_STATE.ctxDefaults, ...(p.ctxDefaults||{})}};
+  }catch(e){
+    return {...DEFAULT_STATE, days:{}};
+  }
+}
+function saveState(){
+  try{ localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ /* プライベートモード等。UI は動作を続ける。 */ }
+}
+let state = loadState();
+
+/* ---------- 4. DATE / CONTEXT ---------- */
+const pad = n => String(n).padStart(2,'0');
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => dkey(new Date());
+function addDays(key, n){
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d+n);
+  return dkey(dt);
+}
+function dowOf(key){
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(y, m-1, d).getDay(); // 0=日
+}
+function slotOf(hour){
+  if(hour < 11) return '朝';
+  if(hour < 16) return '昼';
+  if(hour < 20) return '夕';
+  return '夜';
+}
+function currentContext(){
+  const c = {...state.ctxDefaults, maxIntensity:5, slot:slotOf(new Date().getHours())};
+  return c;
+}
+
+/* ---------- 5. ENGINE: Gate → Feasibility → Fit ---------- */
+
+/** Health Value Gate。閾値は CONFIG で凍結されており、引数で緩められない。 */
+function passesGate(action){
+  return action.hv >= CONFIG.HEALTH_VALUE_THRESHOLD;
+}
+function gatedLibrary(){
+  return ACTION_LIBRARY.filter(passesGate);
+}
+
+/** System Constraint。文脈的に物理的・安全上こなせない候補を落とす。学習とは分離。 */
+function feasibility(a, ctx){
+  if(a.min > ctx.availableMin) return {ok:false, why:`${a.min}分は今日の空き（${ctx.availableMin}分）に入らない`};
+  if(a.travel && !ctx.canGoOut) return {ok:false, why:'外出が必要'};
+  const cap = ctx.energy==='低' ? 2 : ctx.energy==='普通' ? 4 : 5;
+  const capped = Math.min(cap, ctx.maxIntensity ?? 5);
+  if(a.intensity > capped) return {ok:false, why:'今の体力に対して強度が高い'};
+  return {ok:true};
+}
+
+/** Execution Fit。Gate を通過した候補の「今日やれそうか」だけを採点する。 */
+function fitScore(a, ctx, rules){
+  const parts = [];
+  let s = 50;
+  const slack = ctx.availableMin - a.min;
+  const slackPts = Math.min(slack, 12);
+  s += slackPts;
+  if(slackPts > 0) parts.push({label:`時間に${slack}分の余裕`, pts:slackPts});
+  if(!a.travel){ s += 6; parts.push({label:'移動が不要', pts:6}); }
+
+  for(const r of rules){
+    if(r.matches(a, ctx)){ s += r.pts; parts.push({label:r.label, pts:r.pts}); }
+  }
+  // 健康価値が高いほど、同じくらいやれそうな候補の中では優先する（Gate の代替ではない）
+  const hvPts = Math.round((a.hv - CONFIG.HEALTH_VALUE_THRESHOLD) * 0.35);
+  s += hvPts;
+  if(hvPts > 0) parts.push({label:`健康価値 ${a.hv}`, pts:hvPts});
+  return {score:s, parts};
+}
+
+/** 今日の提示を決める。arm='fixed' なら文脈を無視した固定メニュー。 */
+function selectAction(ctx, arm, excludeIds){
+  const exclude = new Set(excludeIds||[]);
+  const gated = gatedLibrary();
+  const excludedByGate = ACTION_LIBRARY.length - gated.length;
+
+  if(arm === 'fixed'){
+    const id = FIXED_PLAN[dowOf(today())];
+    const a = ACTION_LIBRARY.find(x=>x.id===id);
+    return {action:a, score:null, parts:[], excludedByGate, infeasible:[], candidates:[]};
+  }
+
+  const rules = activeRules();
+  const infeasible = [];
+  const scored = [];
+  for(const a of gated){
+    if(exclude.has(a.id)) continue;
+    const f = feasibility(a, ctx);
+    if(!f.ok){ infeasible.push({a, why:f.why}); continue; }
+    scored.push({a, ...fitScore(a, ctx, rules)});
+  }
+  scored.sort((x,y)=> y.score - x.score || y.a.hv - x.a.hv);
+  const top = scored[0] || null;
+  return {
+    action: top ? top.a : null,
+    score: top ? top.score : null,
+    parts: top ? top.parts : [],
+    excludedByGate, infeasible, candidates:scored
+  };
+}
+
+/* ---------- 6. RULE UPDATE（学習） ----------
+   ログから個人ルールを導出する。各群 MIN_N_RULE 件、差 MIN_DELTA_RULE 以上で確定。
+   条件を満たさないものは「学習中」として一切スコアに反映しない。 */
+function completedDays(){
+  return Object.values(state.days).filter(d => d.done === true || d.done === false);
+}
+function rate(list){
+  if(!list.length) return null;
+  return list.filter(d=>d.done).length / list.length;
+}
+function splitStats(list, predicate){
+  const yes = list.filter(predicate), no = list.filter(d=>!predicate(d));
+  return {yes, no, rYes:rate(yes), rNo:rate(no)};
+}
+
+function derivedRules(){
+  const logs = completedDays().filter(d=>d.arm === 'adaptive');
+  const out = [];
+  const push = (o) => out.push(o);
+  const N = CONFIG.MIN_N_RULE, D = CONFIG.MIN_DELTA_RULE;
+
+  // 所要時間
+  {
+    const s = splitStats(logs, d=>d.min <= 10);
+    const ready = s.yes.length>=N && s.no.length>=N;
+    const delta = ready ? s.rYes - s.rNo : null;
+    const status = !ready ? 'learning' : (delta >= D ? 'confirmed' : (delta <= -D ? 'inverted' : 'null'));
+    push({key:'short', icon:'⏱',
+      title: status==='confirmed' ? '10分以下だと続きやすい'
+           : status==='inverted'  ? '10分より長い方が続きやすい'
+           : status==='null'      ? '所要時間による差はなかった'
+           :                        '所要時間との関係を確認中',
+      status, delta, n:{yes:s.yes.length, no:s.no.length}, rYes:s.rYes, rNo:s.rNo,
+      desc: status==='confirmed' ? '短い行動の方が実際に成功しています。' :
+            status==='inverted' ? 'まとまった時間の行動の方が成功しています。短さは優先しません。' :
+            ready ? '所要時間による差は見られませんでした。' :
+            `記録がもう少し必要です（各${N}日以上）。`,
+      pts: 10,
+      matches:(a)=> a.min <= 10,
+      invMatches:(a)=> a.min > 10 });
+  }
+  // 時間帯
+  {
+    const slots = ['朝','昼','夕','夜'];
+    let best=null;
+    for(const sl of slots){
+      const inSlot = logs.filter(d=>d.slot===sl);
+      if(inSlot.length < N) continue;
+      const r = rate(inSlot);
+      if(best===null || r > best.r) best = {slot:sl, r, n:inSlot.length};
+    }
+    const others = best ? logs.filter(d=>d.slot!==best.slot) : [];
+    const ready = !!best && others.length >= N;
+    const delta = ready ? best.r - rate(others) : null;
+    const status = !ready ? 'learning' : (delta>=D ? 'confirmed' : 'null');
+    push({key:'slot', icon:'🌙',
+      title: status==='confirmed' ? `${best.slot}が合っている`
+           : status==='null'      ? '時間帯による差はなかった'
+           :                        '合う時間帯を探しています',
+      status,
+      delta, n: best?{yes:best.n, no:others.length}:{yes:0,no:0}, rYes:best?best.r:null, rNo:ready?rate(others):null,
+      desc: status==='confirmed' ? `${best.slot}の提案が最も実行できています。` :
+            ready ? '時間帯による差は見られませんでした。' :
+            `記録がもう少し必要です（各${N}日以上）。`,
+      pts: 8, matches:(a,ctx)=> !!best && ctx.slot === best.slot, slot:best?best.slot:null });
+  }
+  // 移動の有無
+  {
+    const s = splitStats(logs, d=>d.travel === false);
+    const ready = s.yes.length>=N && s.no.length>=N;
+    const delta = ready ? s.rYes - s.rNo : null;
+    const status = !ready ? 'learning' : (delta>=D ? 'confirmed' : (delta<=-D ? 'inverted' : 'null'));
+    push({key:'notravel', icon:'🏠',
+      title: status==='confirmed' ? '自宅で完結する方が続く'
+           : status==='inverted'  ? '外に出る行動の方が続く'
+           : status==='null'      ? '移動の有無による差はなかった'
+           :                        '移動の有無との関係を確認中',
+      status, delta, n:{yes:s.yes.length, no:s.no.length}, rYes:s.rYes, rNo:s.rNo,
+      desc: status==='confirmed' ? '移動が不要な行動の方が成功しています。' :
+            status==='inverted' ? '外に出る行動の方が成功しています。移動の少なさは優先しません。' :
+            ready ? '移動の有無による差は見られませんでした。' :
+            `記録がもう少し必要です（各${N}日以上）。`,
+      pts: 9,
+      matches:(a)=> a.travel === false,
+      invMatches:(a)=> a.travel === true });
+  }
+  // カテゴリ
+  {
+    const cats = [...new Set(ACTION_LIBRARY.map(a=>a.cat))];
+    let best=null;
+    for(const c of cats){
+      const inCat = logs.filter(d=>d.cat===c);
+      if(inCat.length < N) continue;
+      const r = rate(inCat);
+      if(best===null || r > best.r) best={cat:c, r, n:inCat.length};
+    }
+    const others = best ? logs.filter(d=>d.cat!==best.cat) : [];
+    const ready = !!best && others.length >= N;
+    const delta = ready ? best.r - rate(others) : null;
+    const status = !ready ? 'learning' : (delta>=D ? 'confirmed' : 'null');
+    push({key:'cat', icon:'🎯',
+      title: status==='confirmed' ? `${best.cat}の行動が合っている`
+           : status==='null'      ? '分野による差はなかった'
+           :                        '合う分野を探しています',
+      status,
+      delta, n: best?{yes:best.n, no:others.length}:{yes:0,no:0}, rYes:best?best.r:null, rNo:ready?rate(others):null,
+      desc: status==='confirmed' ? `${best.cat}の提案が最も実行できています。` :
+            ready ? '分野による差は見られませんでした。' :
+            `記録がもう少し必要です（各${N}日以上）。`,
+      pts: 7, matches:(a)=> !!best && a.cat === best.cat, cat:best?best.cat:null });
+  }
+  return out;
+}
+/** 表示用。逆方向に確定したルールでは、タイトルが指す側を「該当」として見せる。
+    タイトルと数字の左右がずれないようにするための入れ替え。 */
+function ruleGroups(r){
+  const swap = r.status === 'inverted';
+  return {
+    hitN: swap ? r.n.no  : r.n.yes, hitR: swap ? r.rNo  : r.rYes,
+    othN: swap ? r.n.yes : r.n.no,  othR: swap ? r.rYes : r.rNo,
+    // 差もタイトルの向きに合わせる（確定した向きを常に正で示す）
+    delta: r.delta === null ? null : (swap ? -r.delta : r.delta)
+  };
+}
+function ruleStat(r){
+  const g = ruleGroups(r);
+  return `該当 ${g.hitN}日 ${pct(g.hitR)} / その他 ${g.othN}日 ${pct(g.othR)}`;
+}
+
+/** スコアに反映するのは判定が確定したルールだけ。逆方向に出た場合は、
+    その向きのまま反映する（都合のよい向きだけ採用しない）。 */
+function activeRules(){
+  const out = [];
+  for(const r of derivedRules()){
+    if(r.status === 'confirmed') out.push({label:r.title, pts:r.pts, matches:r.matches});
+    else if(r.status === 'inverted' && r.invMatches) out.push({label:r.title, pts:r.pts, matches:r.invMatches});
+  }
+  return out;
+}
+
+/* ---------- 7. DAY LIFECYCLE ---------- */
+function ensureToday(){
+  const k = today();
+  if(!state.startDate) state.startDate = k;
+  if(state.days[k]) return state.days[k];
+
+  const ctx = currentContext();
+  const arm = state.experimentOn ? (Math.random() < 0.5 ? 'adaptive' : 'fixed') : 'adaptive';
+  const sel = selectAction(ctx, arm);
+  const a = sel.action;
+
+  const rec = {
+    date:k, arm, ctx,
+    actionId: a ? a.id : null,
+    min: a ? a.min : null, cat: a ? a.cat : null, travel: a ? a.travel : null, hv: a ? a.hv : null,
+    slot: ctx.slot,
+    fit: sel.score, why: sel.parts,
+    excludedByGate: sel.excludedByGate,
+    infeasibleCount: sel.infeasible.length,
+    done:null, reason:null, switched:false, offeredAt:new Date().toISOString()
+  };
+  state.days[k] = rec;
+  saveState();
+  return rec;
+}
+
+function recordOutcome(done, reasonId){
+  const rec = state.days[today()];
+  if(!rec) return;
+  rec.done = done;
+  rec.reason = done ? null : (reasonId || null);
+  rec.decidedAt = new Date().toISOString();
+  saveState();
+}
+
+function switchToAlternative(action, reasonId){
+  const rec = state.days[today()];
+  if(!rec) return;
+  rec.originalActionId = rec.actionId;
+  rec.actionId = action.id;
+  rec.min = action.min; rec.cat = action.cat; rec.travel = action.travel; rec.hv = action.hv;
+  rec.switched = true;
+  rec.reason = reasonId;
+  rec.done = null;
+  saveState();
+}
+
+/* ---------- 8. METRICS ---------- */
+function metrics(){
+  const all = completedDays();
+  const adaptive = all.filter(d=>d.arm==='adaptive');
+  const fixed = all.filter(d=>d.arm==='fixed');
+  const rA = rate(adaptive), rF = rate(fixed);
+
+  const reasonCounts = {};
+  for(const r of REASONS) reasonCounts[r.id] = 0;
+  for(const d of all) if(d.done===false && d.reason) reasonCounts[d.reason] = (reasonCounts[d.reason]||0)+1;
+
+  // H1: Adaptive が Fixed を上回るか
+  const h1Ready = adaptive.length >= CONFIG.MIN_N_H1 && fixed.length >= CONFIG.MIN_N_H1;
+  const lift = (rA!==null && rF!==null) ? (rA - rF) : null;
+  const h1 = !state.experimentOn && !h1Ready ? {status:'blocked', note:'ランダム割付が無効です。H1 のデータは増えません。'}
+    : !h1Ready ? {status:'wait', note:`各アーム${CONFIG.MIN_N_H1}件必要（Adaptive ${adaptive.length} / Fixed ${fixed.length}）`}
+    : {status: lift>0 ? 'pass' : 'fail', note: lift>0 ? `+${(lift*100).toFixed(1)}pt の差` : '優位差なし'};
+
+  // H2: ルールが確定した後、実行率が上がっているか
+  const sorted = [...all].sort((a,b)=>a.date<b.date?-1:1);
+  const half = Math.floor(sorted.length/2);
+  const early = sorted.slice(0,half).filter(d=>d.arm==='adaptive');
+  const late  = sorted.slice(half).filter(d=>d.arm==='adaptive');
+  const h2Ready = sorted.length >= CONFIG.MIN_DAYS_H2 && early.length>=CONFIG.MIN_N_RULE && late.length>=CONFIG.MIN_N_RULE;
+  const h2Delta = h2Ready ? rate(late)-rate(early) : null;
+  const h2 = !h2Ready ? {status:'wait', note:`${CONFIG.MIN_DAYS_H2}日分の記録が必要（現在 ${sorted.length}日）`}
+    : {status: h2Delta>0 ? 'pass':'fail', note:`後半 − 前半 = ${(h2Delta*100).toFixed(1)}pt`};
+
+  // H3: 効果が持続しているか
+  const h3Ready = sorted.length >= CONFIG.MIN_DAYS_H3;
+  const h3 = !h3Ready ? {status:'wait', note:`${CONFIG.MIN_DAYS_H3}日分の記録が必要（現在 ${sorted.length}日）`}
+    : {status:'pass', note:'12週の記録が揃いました。持続性の評価が可能です。'};
+
+  const gateExcluded = ACTION_LIBRARY.filter(a=>!passesGate(a));
+
+  return {all, adaptive, fixed, rA, rF, lift, reasonCounts, h1, h2, h3, gateExcluded, sorted};
+}
+
+function weekWindow(){
+  const out = [];
+  const now = new Date();
+  const dow = now.getDay();
+  const monOffset = (dow===0 ? -6 : 1-dow);
+  for(let i=0;i<7;i++){
+    const k = addDays(today(), monOffset + i);
+    out.push({key:k, rec:state.days[k]||null});
+  }
+  return out;
+}
+
+/* ---------- 9. UI ---------- */
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!=null)n.textContent=txt; return n; };
+const pct = v => v===null||v===undefined ? '—' : `${Math.round(v*100)}%`;
+
+function notify(msg){
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(notify._t);
+  notify._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('on', n.dataset.screen===id));
+  window.scrollTo(0,0);
+  if(id==='progress') renderProgress();
+  if(id==='change') renderChange();
+}
+
+function renderToday(){
+  const rec = ensureToday();
+  const a = ACTION_LIBRARY.find(x=>x.id===rec.actionId);
+
+  // プログラム進捗チップ
+  const dayNo = Math.min(daysSinceStart()+1, CONFIG.PROGRAM_DAYS);
+  $('progChip').textContent = `${dayNo}日目 / ${CONFIG.PROGRAM_DAYS}`;
+
+  if(!a){
+    $('actionTitle').textContent = '今日は提示できる行動がありません';
+    $('actionSub').textContent = '空き時間や体力の設定を見直すと候補が見つかります。';
+    $('actionGlyph').textContent = '🤔';
+    $('pendingBlock').style.display = 'none';
+  }else{
+    $('actionTitle').textContent = a.t;
+    $('actionGlyph').textContent = a.glyph;
+    $('actionSub').textContent = rec.arm === 'fixed'
+      ? '今週のプログラムに沿った行動です。'
+      : 'いま始めても、今日の予定を崩しにくい行動です。';
+  }
+
+  // 実験アームの表示（対照群であることを隠さない）
+  const tag = $('armTag');
+  if(state.experimentOn && a){
+    tag.hidden = false;
+    tag.textContent = rec.arm==='adaptive' ? '状態に合わせた提案' : '固定プログラム（比較用）';
+  }else{
+    tag.hidden = true;
+  }
+
+  // 実行済み / 未実行の表示
+  const decided = rec.done !== null;
+  $('pendingBlock').style.display = decided || !a ? 'none' : '';
+  $('doneState').classList.toggle('show', decided);
+  if(decided){
+    $('doneMark').textContent = rec.done ? '✓' : '—';
+    $('doneText').textContent = rec.done
+      ? '今日の一歩を記録しました。'
+      : `「${REASON_LABEL[rec.reason]||'難しい'}」として記録しました。明日の提案に反映します。`;
+  }
+
+  // なぜこれ？
+  renderWhy(rec, a);
+
+  // 状態チップ
+  const q = $('quickState'); q.textContent='';
+  const c = rec.ctx;
+  const chip = (label, val, onclick) => {
+    const n = el('button','state-chip');
+    n.innerHTML = `${label} <b>${val}</b>`;
+    n.onclick = onclick;
+    return n;
+  };
+  q.append(
+    chip('体力', c.energy, ()=>cycleCtx('energy')),
+    chip('時間', `${c.availableMin}分`, ()=>cycleCtx('availableMin')),
+    chip('場所', c.canGoOut ? '外出できる' : '自宅', ()=>cycleCtx('canGoOut'))
+  );
+
+  renderWeek();
+  renderInsights();
+}
+
+function renderWhy(rec, a){
+  const box = $('whyBox');
+  if(!a){ box.textContent = '候補がないため、選定理由はありません。'; return; }
+  box.textContent = '';
+  if(rec.arm === 'fixed'){
+    box.append(el('div',null,'この提案は、比較のための固定プログラムです。今日の状態は考慮していません。効果の差を正しく測るために、一部の日をこの方式にしています。'));
+  }else{
+    const c = rec.ctx;
+    box.append(el('div',null,
+      `「空き${c.availableMin}分・体力${c.energy}・${c.canGoOut?'外出できる':'自宅'}」という条件で、健康価値の基準（${CONFIG.HEALTH_VALUE_THRESHOLD}点以上）を満たす候補の中から、今日いちばん続けやすいものを選びました。`));
+    const dl = el('dl');
+    dl.append(el('dt',null,'健康価値'), el('dd',null,`${a.hv} / 100（基準 ${CONFIG.HEALTH_VALUE_THRESHOLD} 以上）`));
+    dl.append(el('dt',null,'所要時間'), el('dd',null,`${a.min}分`));
+    for(const p of (rec.why||[]).slice(0,4)){
+      dl.append(el('dt',null,'加点'), el('dd',null,`${p.label}（+${p.pts}）`));
+    }
+    box.append(dl);
+  }
+  box.append(el('div','microcopy',`基準に満たない行動は、どれだけ楽でも提示しません（今回 ${rec.excludedByGate} 件を除外）。`));
+}
+
+function cycleCtx(field){
+  const d = state.ctxDefaults;
+  if(field==='energy')      d.energy = d.energy==='低' ? '普通' : d.energy==='普通' ? '高' : '低';
+  if(field==='availableMin')d.availableMin = d.availableMin<=5 ? 15 : d.availableMin<=15 ? 30 : 5;
+  if(field==='canGoOut')    d.canGoOut = !d.canGoOut;
+
+  // 未決定の日だけ、新しい文脈で選び直す（決定済みの記録は書き換えない）
+  const rec = state.days[today()];
+  if(rec && rec.done===null && rec.arm==='adaptive'){
+    const ctx = currentContext();
+    const sel = selectAction(ctx, 'adaptive');
+    if(sel.action){
+      rec.ctx = ctx; rec.actionId = sel.action.id; rec.min=sel.action.min;
+      rec.cat=sel.action.cat; rec.travel=sel.action.travel; rec.hv=sel.action.hv;
+      rec.fit=sel.score; rec.why=sel.parts; rec.excludedByGate=sel.excludedByGate;
+    }else{
+      rec.actionId = null;
+    }
+  }
+  saveState();
+  renderToday();
+  notify('今日の状態を更新しました');
+}
+
+function renderWeek(){
+  const wrap = $('weekBars'); wrap.textContent='';
+  const names = ['月','火','水','木','金','土','日'];
+  const win = weekWindow();
+  let done = 0;
+  win.forEach((d,i)=>{
+    const day = el('div','day');
+    const bw = el('div','barwrap');
+    const bar = el('div','bar');
+    const has = d.rec && d.rec.done===true;
+    if(has){ done++; bar.classList.add('done'); }
+    if(d.key===today()) bar.classList.add('today');
+    const h = d.rec ? (has ? 45 + Math.min((d.rec.min||5)*2, 40) : 32) : 22;
+    bar.style.height = h+'%';
+    bw.append(bar);
+    day.append(bw, el('span',null,names[i]));
+    wrap.append(day);
+  });
+  $('weekCount').innerHTML = `${done} <small>/ 7日</small>`;
+
+  // 先週比
+  const prev = [];
+  for(let i=1;i<=7;i++){ const k = addDays(win[0].key, -i); if(state.days[k]) prev.push(state.days[k]); }
+  const prevDone = prev.filter(d=>d.done===true).length;
+  const dEl = $('weekDelta');
+  if(prev.length===0){ dEl.textContent='先週の記録なし'; dEl.className='delta'; }
+  else{
+    const diff = done - prevDone;
+    dEl.textContent = diff===0 ? '先週と同じ' : `先週より ${diff>0?'+':''}${diff}日`;
+    dEl.className = 'delta' + (diff>0?' up':'');
+  }
+}
+
+function renderInsights(){
+  const list = $('insightList'); list.textContent='';
+  const rules = derivedRules();
+  const confirmed = rules.filter(r=>r.status==='confirmed' || r.status==='inverted');
+  if(confirmed.length===0){
+    const n = el('div','empty');
+    n.innerHTML = `まだ傾向を出せるほど記録がありません。<br>「できた／難しい」を数日ぶん記録すると、あなたに合う条件が見えてきます。`;
+    list.append(n);
+    return;
+  }
+  for(const r of confirmed.slice(0,3)){
+    const row = el('div','insight');
+    row.append(el('div','ico', r.icon));
+    const body = el('div');
+    body.append(el('b',null,r.title));
+    body.append(el('p',null,r.desc));
+    body.append(el('span','n', ruleStat(r)));
+    row.append(body);
+    list.append(row);
+  }
+}
+
+/* ---- change screen ---- */
+let pickedReason = null;
+function renderChange(){
+  const grid = $('choiceGrid'); grid.textContent='';
+  pickedReason = null;
+  $('adaptBtn').disabled = true;
+  $('altCard').classList.remove('show');
+  $('altNone').classList.remove('show');
+
+  for(const r of REASONS){
+    const b = el('button','choice', r.label);
+    b.onclick = ()=>{
+      grid.querySelectorAll('.choice').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      pickedReason = r;
+      $('adaptBtn').disabled = false;
+    };
+    grid.append(b);
+  }
+}
+
+$('adaptBtn').onclick = ()=>{
+  if(!pickedReason) return;
+  const rec = state.days[today()];
+
+  // 対照群では代替提示を行わない（実験の妥当性を守るため）
+  if(rec && rec.arm === 'fixed'){
+    recordOutcome(false, pickedReason.id);
+    $('altCard').classList.remove('show');
+    const n = $('altNone');
+    n.textContent = '今日は固定プログラムの日のため、代替案の提示は行いません。理由は記録しました。比較のために必要な運用です。';
+    n.classList.add('show');
+    notify('理由を記録しました');
+    setTimeout(()=>{ show('today'); renderToday(); }, 1400);
+    return;
+  }
+
+  const ctx = pickedReason.apply(currentContext());
+  const sel = selectAction(ctx, 'adaptive', rec ? [rec.actionId] : []);
+  if(!sel.action){
+    $('altCard').classList.remove('show');
+    const n = $('altNone');
+    n.textContent = `その条件だと、健康価値の基準（${CONFIG.HEALTH_VALUE_THRESHOLD}点以上）を満たす候補が残りませんでした。基準を下げてまで提示することはしません。今日は休みにして、明日また合わせます。`;
+    n.classList.add('show');
+    recordOutcome(false, pickedReason.id);
+    return;
+  }
+  $('altNone').classList.remove('show');
+  $('altTitle').textContent = sel.action.t;
+  $('altWhy').textContent = `健康価値 ${sel.action.hv} 点・${sel.action.min}分。負担を下げても、基準を満たす候補だけから選んでいます。`;
+  $('altCard').classList.add('show');
+  $('useAlt').onclick = ()=>{
+    switchToAlternative(sel.action, pickedReason.id);
+    show('today'); renderToday();
+    notify('今日の提案を変更しました');
+  };
+};
+
+/* ---- progress screen ---- */
+function daysSinceStart(){
+  if(!state.startDate) return 0;
+  const [y,m,d] = state.startDate.split('-').map(Number);
+  const s = new Date(y,m-1,d), n = new Date();
+  return Math.max(0, Math.floor((n - s)/86400000));
+}
+function renderProgress(){
+  const m = metrics();
+  const adaptive = m.adaptive;
+
+  // 直近4週とその前の4週を、日付順で比較する（挿入順に依存しない）
+  const chrono = [...adaptive].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const cut1 = addDays(today(), -27), cut2 = addDays(today(), -55);
+  const last28 = chrono.filter(d => d.date >= cut1);
+  const prev28 = chrono.filter(d => d.date >= cut2 && d.date < cut1);
+
+  const rd = $('rateDelta');
+  if(last28.length < 4){
+    // 母数が4日未満の率は表示しない
+    $('rate4w').textContent = '—';
+    rd.textContent = `直近4週の記録 ${last28.length}日`;
+    rd.className = 'delta';
+  }else{
+    $('rate4w').innerHTML = `${pct(rate(last28))} <small>直近4週 / ${last28.length}日</small>`;
+    if(prev28.length < 4){
+      rd.textContent = '前の4週は記録不足';
+      rd.className = 'delta';
+    }else{
+      const diff = Math.round((rate(last28) - rate(prev28))*100);
+      rd.textContent = `${diff>=0?'+':''}${diff}pt / 前の4週`;
+      rd.className = 'delta' + (diff>0?' up':'');
+    }
+  }
+
+  // 週別トレンド
+  const wrap = $('trendWrap'); wrap.textContent='';
+  const weeks = weeklyRates(6);
+  const hasData = weeks.some(w=>w.n>0);
+  if(!hasData){
+    wrap.append(el('div','empty','記録が貯まると、ここに週ごとの継続率が出ます。'));
+    $('trendNote').textContent = '';
+  }else{
+    const bars = el('div','bars');
+    for(const w of weeks){
+      const row = el('div','brow wide');
+      row.append(el('div','lab', w.label));
+      const track = el('div','track');
+      const fill = el('div','fill');
+      fill.style.width = w.n ? Math.max(2, (w.r*100)) + '%' : '0%';
+      if(w.n && w.n < 3) fill.style.opacity = '.4';   // 母数が少ない週は薄く出す
+      track.append(fill);
+      row.append(track);
+      // 率だけを見せない。必ず母数を併記する。
+      row.append(el('div','val', w.n ? `${pct(w.r)} · ${w.n}日` : '記録なし'));
+      bars.append(row);
+    }
+    wrap.append(bars);
+    $('trendNote').textContent = '状態に合わせた提案の日だけを集計しています（固定プログラムの日は含みません）。日数が少ない週は、率が大きく振れます。';
+  }
+
+  // プログラム
+  const pc = $('programCard'); pc.textContent='';
+  const dayNo = Math.min(daysSinceStart()+1, CONFIG.PROGRAM_DAYS);
+  const doneCount = m.all.filter(d=>d.done===true).length;
+  const needed = Math.ceil(CONFIG.PROGRAM_DAYS * CONFIG.PROGRAM_COMPLETION_RATE);
+  const top = el('div','progress-top');
+  top.append(el('div','big', `${doneCount} 日`));
+  const dd = el('div','delta', `完了まで あと ${Math.max(0, needed-doneCount)} 日`);
+  if(doneCount>=needed){ dd.textContent='完了条件を満たしました'; dd.className='delta up'; }
+  top.append(dd);
+  pc.append(top);
+  const bars = el('div','bars');
+  const row = el('div','brow');
+  row.append(el('div','lab','進捗'));
+  const tr = el('div','track'); const fl = el('div','fill');
+  fl.style.width = Math.min(100, (doneCount/needed)*100) + '%';
+  tr.append(fl); row.append(tr);
+  row.append(el('div','val', `${dayNo}/${CONFIG.PROGRAM_DAYS}日`));
+  bars.append(row); pc.append(bars);
+  pc.append(el('div','microcopy', `完了の目安は、90日のうち ${needed} 日以上の実行です。毎日やる必要はありません。`));
+
+  // パターン
+  const pl = $('patternList'); pl.textContent='';
+  const rules = derivedRules();
+  for(const r of rules){
+    const row2 = el('div','insight');
+    row2.append(el('div','ico', r.status==='learning' ? '…' : r.icon));
+    const body = el('div');
+    body.append(el('b',null, r.title));
+    body.append(el('p',null, r.desc));
+    if(r.status!=='learning'){
+      body.append(el('span','n', ruleStat(r)));
+    }
+    row2.append(body);
+    pl.append(row2);
+  }
+}
+function weeklyRates(n){
+  const out = [];
+  for(let w=n-1; w>=0; w--){
+    const list = [];
+    for(let i=0;i<7;i++){
+      const k = addDays(today(), -(w*7 + i));
+      const r = state.days[k];
+      if(r && r.arm==='adaptive' && r.done!==null) list.push(r);
+    }
+    out.push({label: w===0 ? '今週' : `${w}週前`, n:list.length, r: rate(list) ?? 0});
+  }
+  return out;
+}
+
+/* ---------- 10. EVENT WIRING ---------- */
+document.querySelectorAll('.nav').forEach(n=> n.onclick = ()=> show(n.dataset.screen));
+$('whyBtn').onclick = ()=> $('whyBox').classList.toggle('show');
+$('hardBtn').onclick = ()=> show('change');
+$('doneBtn').onclick = ()=>{
+  recordOutcome(true, null);
+  renderToday();
+  notify('今日の一歩を記録しました ✓');
+};
+$('undoBtn').onclick = ()=>{
+  const rec = state.days[today()];
+  if(rec){ rec.done=null; rec.reason=null; delete rec.decidedAt; saveState(); }
+  renderToday();
+  notify('記録を取り消しました');
+};
+
+/* ============================================================================
+   ADMIN CONSOLE
+   ----------------------------------------------------------------------------
+   旧版はアバターのタップだけで開いていたため、実行率比較・実験仮説・個人ルール・
+   Gate 閾値が誰にでも見えていた（提案書 10章 P0）。以下の変更で塞いでいる:
+     - 起動経路をアバターから外し、#console のハッシュに限定
+     - パスフレーズによるゲートを追加
+   このゲートはクライアント側であり、ソースを読める相手には無力である。
+   本番では必ずサーバー側の管理者認証に置き換えること。
+   ========================================================================== */
+let adminUnlocked = false;
+
+function openConsole(){
+  $('console').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  adminUnlocked ? renderConsole() : renderLock();
+}
+function closeConsole(){
+  $('console').classList.remove('show');
+  document.body.style.overflow = '';
+  if(location.hash === '#console') history.replaceState(null,'',location.pathname+location.search);
+}
+function renderLock(){
+  const b = $('consoleBody'); b.textContent='';
+  const wrap = el('div','lock');
+  wrap.append(el('h2',null,'管理コンソール'));
+  wrap.append(el('p',null,'学習・安全・実験レイヤーの内部指標を表示します。運営者以外には公開されません。'));
+  const inp = document.createElement('input');
+  inp.type='password'; inp.placeholder='パスフレーズ'; inp.autocomplete='off';
+  wrap.append(inp);
+  const err = el('div','err','');
+  const btn = el('button','primary','開く'); btn.style.marginTop='12px';
+  const tryOpen = ()=>{
+    if(inp.value === CONFIG.ADMIN_PASSPHRASE){ adminUnlocked = true; renderConsole(); }
+    else{ err.textContent = 'パスフレーズが違います。'; inp.value=''; inp.focus(); }
+  };
+  btn.onclick = tryOpen;
+  inp.onkeydown = e => { if(e.key==='Enter') tryOpen(); };
+  wrap.append(btn, err);
+  const back = el('button','link','アプリに戻る');
+  back.onclick = closeConsole;
+  wrap.append(back);
+  b.append(wrap);
+  setTimeout(()=>inp.focus(), 50);
+}
+
+function renderConsole(){
+  const b = $('consoleBody'); b.textContent='';
+  const m = metrics();
+
+  // header
+  const head = el('div','chead');
+  const left = el('div');
+  left.append(el('h2',null,'Today One / 管理コンソール'));
+  left.append(el('div','s','ユーザー非表示｜学習・安全・実験レイヤー'));
+  head.append(left);
+  const close = el('button','cbtn','閉じる'); close.onclick = closeConsole;
+  head.append(close);
+  b.append(head);
+
+  b.append(banner('warn','このパスフレーズはクライアント側のデモ用ゲートです。ソースを読める相手には無力です。本番環境では必ずサーバー側の管理者認証に置き換えてください。'));
+  if(state.hasSynthetic){
+    b.append(banner('warn','表示中のデータにはデモ用の生成データが含まれます。この状態の数値を社外資料に転記しないでください。'));
+  }
+  if(m.all.length === 0){
+    b.append(banner('info','まだ実データがありません。すべての指標は「判定不能」と表示されます。デモが必要な場合は下部の「デモデータを投入」を使ってください（生成データである旨が全画面に表示されます）。'));
+  }
+
+  // tabs
+  const tabs = el('div','ctabs');
+  const panes = el('div');
+  const defs = [
+    ['engine','エンジン', paneEngine],
+    ['learning','学習', paneLearning],
+    ['experiment','実験ゲート', paneExperiment],
+    ['gate','Health Value Gate', paneGate],
+    ['data','データ境界', paneData]
+  ];
+  defs.forEach(([id,label,fn],i)=>{
+    const t = el('button','ctab'+(i===0?' on':''), label);
+    const p = el('div','cpane'+(i===0?' on':''));
+    p.append(fn(m));
+    t.onclick = ()=>{
+      tabs.querySelectorAll('.ctab').forEach(x=>x.classList.remove('on'));
+      panes.querySelectorAll('.cpane').forEach(x=>x.classList.remove('on'));
+      t.classList.add('on'); p.classList.add('on');
+    };
+    tabs.append(t); panes.append(p);
+  });
+  b.append(tabs, panes);
+}
+
+function banner(kind, text){
+  const n = el('div','banner '+kind, text);
+  return n;
+}
+function metricTile(value, key, cls){
+  const n = el('div','metric');
+  const v = el('div','v'+(cls?' '+cls:''), value);
+  n.append(v, el('div','k',key));
+  return n;
+}
+function panel(title, ...children){
+  const p = el('div','panel');
+  p.append(el('h3',null,title));
+  children.forEach(c=>p.append(c));
+  return p;
+}
+
+function paneEngine(m){
+  const f = document.createDocumentFragment();
+  const g = el('div','grid');
+  g.append(
+    m.adaptive.length ? metricTile(pct(m.rA),'状態適応 実行率','pos') : metricTile('判定不能','状態適応 実行率','na'),
+    m.fixed.length ? metricTile(pct(m.rF),'固定プログラム 実行率') : metricTile('判定不能','固定プログラム 実行率','na'),
+    (m.lift!==null) ? metricTile(`${m.lift>=0?'+':''}${(m.lift*100).toFixed(1)}pt`,'差（H1）', m.lift>0?'pos':'') : metricTile('判定不能','差（H1）','na'),
+    metricTile(String(m.gateExcluded.length),'Gate 除外（ライブラリ内）')
+  );
+  f.append(g);
+
+  const counts = el('div','grid');
+  counts.append(
+    metricTile(String(m.all.length),'決定済みの日数'),
+    metricTile(String(m.adaptive.length),'状態適応アーム n'),
+    metricTile(String(m.fixed.length),'固定アーム n'),
+    metricTile(String(m.all.filter(d=>d.switched).length),'代替案に切替えた日')
+  );
+  f.append(counts);
+
+  const pipe = el('div','pipe');
+  const steps = [['Action Library',0],['Health Value Gate',1],['Context',0],['Execution Fit',0],['Today One',0],['実行/未実行',0],['Reason Classifier',1],['Rule Update',0]];
+  steps.forEach(([label,key],i)=>{
+    pipe.append(el('span','b'+(key?' key':''), label));
+    if(i<steps.length-1) pipe.append(el('span','a','→'));
+  });
+  f.append(panel('選択パイプライン', pipe,
+    el('p',null,'Gate と Reason Classifier が、他社が持たない2点。Gate は学習器から分離されており、実行率を上げる目的で閾値を動かすことはできない。')));
+
+  // 未実行理由
+  const total = Object.values(m.reasonCounts).reduce((a,b)=>a+b,0);
+  const bars = el('div','bars');
+  if(total===0){
+    bars.append(el('p',null,'未実行の記録がまだありません。'));
+  }else{
+    const max = Math.max(...Object.values(m.reasonCounts));
+    for(const r of REASONS){
+      const c = m.reasonCounts[r.id]||0;
+      const row = el('div','brow');
+      row.append(el('div','lab', r.label.replace(/^\S+\s/,'')));
+      const tr = el('div','track'); const fl = el('div','fill');
+      fl.style.width = max ? (c/max*100)+'%' : '0%';
+      tr.append(fl); row.append(tr);
+      row.append(el('div','val', `${c}件`));
+      bars.append(row);
+    }
+  }
+  f.append(panel('未実行理由の分布（Reason Classifier）', bars,
+    el('p',null,'「今日は難しい」は離脱の予兆ではなく、本製品における主要なデータ採取装置。押されるほど提示精度が上がる。')));
+
+  return f;
+}
+
+function paneLearning(m){
+  const f = document.createDocumentFragment();
+  const rules = derivedRules();
+  const tbl = el('table');
+  tbl.innerHTML = `<thead><tr><th>ルール</th><th class="n">該当</th><th class="n">その他</th><th class="n">差</th><th>判定</th></tr></thead>`;
+  const tb = el('tbody');
+  for(const r of rules){
+    const g = ruleGroups(r);
+    const tr = el('tr');
+    tr.append(el('td',null,r.title));
+    tr.append(el('td','n', g.hitN ? `${g.hitN}日 ${pct(g.hitR)}` : '—'));
+    tr.append(el('td','n', g.othN ? `${g.othN}日 ${pct(g.othR)}` : '—'));
+    tr.append(el('td','n', g.delta===null ? '—' : `${g.delta>=0?'+':''}${(g.delta*100).toFixed(1)}pt`));
+    const st = el('td');
+    const map = {confirmed:['go','確定'], inverted:['go','確定（逆方向）'], null:['wait','差なし'], learning:['wait','学習中']};
+    const [cls,label] = map[r.status];
+    st.append(el('span','pill '+cls, label));
+    tr.append(st);
+    tb.append(tr);
+  }
+  tbl.append(tb);
+  const scroll = el('div','tbl-scroll'); scroll.append(tbl);
+  f.append(panel('学習した個人ルール', scroll,
+    el('p',null,`各群 ${CONFIG.MIN_N_RULE} 件以上、かつ差 ${CONFIG.MIN_DELTA_RULE*100} pt 以上のときだけ「確定」とし、スコアに反映する。それ以外は一切加点しない。`)));
+
+  f.append(panel('現在スコアに反映されているルール',
+    (()=>{ const a = activeRules();
+      if(!a.length) return el('p',null,'確定したルールはまだありません。現在の提示は、健康価値と実行可能性のみで決まっています。');
+      const ul = el('div','bars');
+      a.forEach(r=>{ const row=el('div','brow'); row.append(el('div','lab','加点')); row.append(el('div',null,r.label)); row.append(el('div','val',`+${r.pts}`)); ul.append(row); });
+      return ul; })()));
+  return f;
+}
+
+function paneExperiment(m){
+  const f = document.createDocumentFragment();
+  const box = el('div');
+  const mk = (id, title, body, res) => {
+    const row = el('div','gate-row');
+    row.append(el('div','id', id));
+    const tx = el('div','tx');
+    tx.innerHTML = `<b>${title}</b><br>${body}`;
+    row.append(tx);
+    const map = {pass:['go','成立'], fail:['block','不成立'], wait:['wait','判定不能'], blocked:['block','停止中']};
+    const [cls,label] = map[res.status];
+    const p = el('span','pill '+cls, label);
+    row.append(p);
+    const note = el('div','tx'); note.style.flex='0 0 100%'; note.style.color='var(--muted)';
+    note.textContent = res.note;
+    row.append(note);
+    return row;
+  };
+  box.append(mk('H1','Fit — 状態に合わせた提示で実行率が上がるか','成立すれば営業に使える。同一利用者内でランダム割付して比較する。', m.h1));
+  box.append(mk('H2','Learning — 使うほど提案が良くなるか','成立まで ML 投資と「AI 搭載」訴求を解禁しない。', m.h2));
+  box.append(mk('H3','Persistence — 効果が持続するか','解約率と LTV を決める。成立まで多年度値引きと営業組織の拡大を行わない。', m.h3));
+  f.append(panel('仮説ゲート', box));
+
+  f.append(panel('割付の設定', (()=>{
+    const wrap = el('div');
+    wrap.append(el('p',null, state.experimentOn
+      ? '現在、日ごとに 50% の確率で固定プログラム（対照群）を提示しています。H1 のデータはこの割付からしか得られません。'
+      : 'ランダム割付は無効です。利用者は常に状態適応の提示を受けますが、H1 の比較データは増えません。'));
+    const row = el('div','row-actions');
+    const t = el('button','cbtn', state.experimentOn ? 'ランダム割付を止める' : 'ランダム割付を再開する');
+    t.onclick = ()=>{ state.experimentOn = !state.experimentOn; saveState(); renderConsole(); };
+    row.append(t);
+    wrap.append(row);
+    return wrap;
+  })()));
+
+  f.append(panel('パイロットで測る指標', (()=>{
+    const tbl = el('table');
+    tbl.innerHTML = `<thead><tr><th>階層</th><th>指標</th><th class="n">現在値</th><th class="n">目標</th></tr></thead>`;
+    const tb = el('tbody');
+    const rows = [
+      ['主要','実行日数の到達率（90日中）', m.all.length ? `${m.all.filter(d=>d.done).length}日 / 54日` : '—', '54日'],
+      ['副次','12週継続率', m.adaptive.length>=12 ? `${pct(m.rA)}（n=${m.adaptive.length}）` : '判定不能', '60%'],
+      ['副次','Gate 通過行動のみでの実行率', m.adaptive.length>=CONFIG.MIN_N_H1 ? `${pct(m.rA)}（n=${m.adaptive.length}）` : '判定不能', '70%'],
+      ['学習','個人ルール確定までの日数', (()=>{ const c = derivedRules().filter(r=>r.status==='confirmed').length; return c? `${m.all.length}日で${c}件` : '未確定'; })(), '21日以内']
+    ];
+    rows.forEach(r=>{
+      const tr = el('tr');
+      tr.append(el('td',null,r[0]), el('td',null,r[1]), el('td','n',r[2]), el('td','n',r[3]));
+      tb.append(tr);
+    });
+    tbl.append(tb);
+    const s = el('div','tbl-scroll'); s.append(tbl);
+    return s;
+  })(), el('p',null,'単一利用者の記録では母数が足りません。健保組合パイロットでは、同一組合内で対象者を割り付けて集計します。')));
+  return f;
+}
+
+function paneGate(m){
+  const f = document.createDocumentFragment();
+  f.append(panel('不可侵の基準', (()=>{
+    const g = el('div','gatebox');
+    g.innerHTML = `Health Value Threshold：<b>${CONFIG.HEALTH_VALUE_THRESHOLD} / 100</b><br>`+
+      `Gate 未達：<b>候補から除外</b>（現在 ${m.gateExcluded.length} 件）<br>`+
+      `簡単さに合わせた基準変更：<b style="color:var(--danger)">禁止</b><br>`+
+      `プラン・課金状態による基準変更：<b style="color:var(--danger)">禁止</b><br>`+
+      `System Constraint：本人 Fit 学習から<b>分離</b>`;
+    return g;
+  })(), el('p',null,'閾値は実行時に変更できない定数として保持している。価格は下げても、基準は下げない。')));
+
+  const tbl = el('table');
+  tbl.innerHTML = `<thead><tr><th>行動</th><th>分野</th><th class="n">健康価値</th><th class="n">所要</th><th>採点根拠</th></tr></thead>`;
+  const tb = el('tbody');
+  [...ACTION_LIBRARY].sort((a,b)=>b.hv-a.hv).forEach(a=>{
+    const tr = el('tr');
+    if(!passesGate(a)) tr.className='excluded';
+    tr.append(el('td',null,a.t), el('td',null,a.cat), el('td','n',String(a.hv)), el('td','n',`${a.min}分`), el('td',null,a.hvNote));
+    tb.append(tr);
+  });
+  tbl.append(tb);
+  const s = el('div','tbl-scroll'); s.append(tbl);
+  f.append(panel('Action Library と採点根拠', s,
+    el('p',null,'取り消し線は Gate 未達で提示されない行動。「SNSを5分だけ見る」のように、簡単だが健康価値のない候補を意図的に残し、Gate が実際に効いていることを監査できるようにしている。')));
+  return f;
+}
+
+function paneData(m){
+  const f = document.createDocumentFragment();
+  f.append(panel('データ境界', el('p',null,
+    '個人の行動ログは端末内（localStorage）に保持し、サーバーへ送っていません。事業主・健保組合へ渡せるのは集計値のみで、'+
+    `対象者が ${CONFIG.K_ANONYMITY} 名未満の集計は出力しません（k-匿名性）。この壁は後付けできないため、最初から製品側に実装しています。`)));
+
+  const n = 1; // このデバイスの利用者数
+  const box = el('div','gatebox');
+  if(n < CONFIG.K_ANONYMITY){
+    box.innerHTML = `<b>事業主向け集計：出力できません</b><br>`+
+      `対象者 ${n} 名は k-匿名性のしきい値（${CONFIG.K_ANONYMITY} 名）を下回ります。`+
+      `個人が特定されうるため、集計値であっても出力を拒否します。`;
+  }else{
+    box.textContent = '出力可能です。';
+  }
+  f.append(panel('事業主向け出力（k-匿名性チェック）', box, el('p',null,
+    'この拒否は仕様どおりの動作です。人数が満たない集計を出さないことが、企業導入時に法務・労組を通すための前提になります。')));
+
+  const rows = el('div','row-actions');
+  const exp = el('button','cbtn','個人データを書き出す（本人用）');
+  exp.onclick = ()=>{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'today-one-personal-data.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const demo = el('button','cbtn','デモデータを投入');
+  demo.onclick = ()=>{ seedSynthetic(60); renderConsole(); };
+  const wipe = el('button','cbtn danger','すべての記録を削除');
+  wipe.onclick = ()=>{
+    if(!confirm('この端末に保存された記録をすべて削除します。取り消せません。よろしいですか？')) return;
+    try{ localStorage.removeItem(CONFIG.STORAGE_KEY); }catch(e){}
+    state = {...DEFAULT_STATE, days:{}};
+    renderConsole(); renderToday();
+  };
+  rows.append(exp, demo, wipe);
+  f.append(panel('データ操作', rows, el('p',null,
+    '書き出しは本人のためのものです（データポータビリティ）。デモデータを入れると、以後すべての画面に生成データである旨の警告が出ます。')));
+  return f;
+}
+
+/* デモ用の生成データ。必ず hasSynthetic を立てて、数値の出所を隠さない。 */
+function seedSynthetic(days){
+  const gated = gatedLibrary();
+  for(let i=days; i>=1; i--){
+    const k = addDays(today(), -i);
+    if(state.days[k]) continue;
+    const arm = Math.random()<0.5 ? 'adaptive' : 'fixed';
+    const a = arm==='fixed'
+      ? ACTION_LIBRARY.find(x=>x.id===FIXED_PLAN[dowOf(k)])
+      : gated[Math.floor(Math.random()*gated.length)];
+    // 傾向を作る: 短い・移動不要・夕方は成功しやすい / 固定は文脈を無視するので低め
+    let p = arm==='fixed' ? 0.58 : 0.62;
+    if(arm==='adaptive'){
+      if(a.min<=10) p += 0.14;
+      if(!a.travel) p += 0.08;
+    }
+    const slot = ['朝','昼','夕','夜'][Math.floor(Math.random()*4)];
+    if(arm==='adaptive' && slot==='夕') p += 0.09;
+    const done = Math.random() < Math.min(p, 0.94);
+    state.days[k] = {
+      date:k, arm, ctx:{energy:'普通', availableMin:15, canGoOut:Math.random()<0.5, maxIntensity:5, slot},
+      actionId:a.id, min:a.min, cat:a.cat, travel:a.travel, hv:a.hv, slot,
+      fit:null, why:[], excludedByGate: ACTION_LIBRARY.length-gated.length, infeasibleCount:0,
+      done, reason: done ? null : REASONS[Math.floor(Math.random()*REASONS.length)].id,
+      switched:false, offeredAt:new Date().toISOString(), synthetic:true
+    };
+  }
+  // 既に今日で開始済みでも、生成した最古の日まで開始日を巻き戻す
+  const earliest = addDays(today(), -days);
+  if(!state.startDate || state.startDate > earliest) state.startDate = earliest;
+  state.hasSynthetic = true;
+  saveState();
+  renderToday();
+}
+
+/* コンソールの起動経路は #console のみ。アバターのタップでは開かない。 */
+function checkHash(){ if(location.hash === '#console') openConsole(); }
+window.addEventListener('hashchange', checkHash);
+document.addEventListener('keydown', e => { if(e.key==='Escape' && $('console').classList.contains('show')) closeConsole(); });
+
+/* ---------- 11. INIT ---------- */
+renderToday();
+checkHash();
+</script>
+</body>
+</html>
