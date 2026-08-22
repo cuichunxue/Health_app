@@ -67,15 +67,29 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .primary{width:100%;border:0;border-radius:14px;background:var(--brand);color:#fff;padding:15px 16px;font-weight:900;font-size:15.5px;box-shadow:0 6px 16px rgba(25,107,74,.16)}
 .primary:disabled{opacity:.45;box-shadow:none;cursor:default}
 .secondary{width:100%;border:1px solid var(--line);border-radius:14px;background:var(--soft);color:var(--ink2);padding:13px 16px;font-weight:800;margin-top:9px;font-size:14px}
-.link{border:0;background:transparent;color:var(--brand);font-size:11px;font-weight:800;padding:11px 0 0}
+.link{border:0;background:transparent;color:var(--brand);font-size:11px;font-weight:800;padding:11px 6px;min-height:44px;display:inline-flex;align-items:center}
+.link[hidden]{display:none}
+.link.muted{color:var(--muted)}
+.link-row{display:flex;justify-content:space-between;align-items:center;margin:0 -6px}
 .reason-box{display:none;margin-top:11px;padding:13px;border-radius:13px;background:var(--soft);border:1px solid var(--line);font-size:11.5px;line-height:1.75;color:var(--ink2)}
 .reason-box.show{display:block}
+.avoid-confirm{display:none;margin-top:11px;padding:13px;border-radius:13px;background:var(--warn-soft);border:1px solid var(--warn)}
+.avoid-confirm.show{display:block}
+.avoid-confirm p{margin:0;font-size:11.5px;line-height:1.75;color:var(--warn)}
+.avoid-actions{display:flex;gap:8px;margin-top:11px}
+.avoid-actions .secondary,.avoid-actions .primary{margin-top:0;flex:1}
+.primary.danger{background:var(--danger);box-shadow:0 6px 16px rgba(168,67,78,.18)}
+.avoided-list{display:flex;flex-direction:column;gap:8px}
+.avoided-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.avoided-row:last-child{border-bottom:0}
+.avoided-row span{font-size:12px;color:var(--ink2)}
+.avoided-row button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--muted);min-height:36px}
 .reason-box dl{margin:9px 0 0;display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px}
 .reason-box dt{color:var(--muted)}
 .reason-box dd{margin:0;font-variant-numeric:tabular-nums}
 
 .quick-state{display:flex;gap:7px;margin-top:13px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
-.state-chip{min-width:max-content;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 11px;font-size:10.5px;color:var(--muted)}
+.state-chip{min-width:max-content;min-height:44px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 13px;font-size:10.5px;color:var(--muted);display:inline-flex;align-items:center}
 .state-chip b{color:var(--ink);font-weight:800}
 
 .section{margin-top:20px}
@@ -217,7 +231,7 @@ tr.excluded td:first-child{text-decoration:line-through}
     <p class="sub" id="todaySub">いまの状態に合わせて、無理なくできる健康行動を1つだけ選びました。</p>
 
     <div class="card action-card">
-      <div class="kicker">TODAY'S ONE</div>
+      <div class="kicker">今日の1つ</div>
       <div class="action" id="actionTitle">—</div>
       <div class="action-sub" id="actionSub"></div>
       <div class="arm-tag" id="armTag" hidden></div>
@@ -238,8 +252,18 @@ tr.excluded td:first-child{text-decoration:line-through}
         <button class="link" id="undoBtn">記録を取り消す</button>
       </div>
 
-      <button class="link" id="whyBtn">なぜこれ？</button>
+      <div class="link-row">
+        <button class="link" id="whyBtn">なぜこれ？</button>
+        <button class="link muted" id="avoidBtn">体に合わない</button>
+      </div>
       <div class="reason-box" id="whyBox"></div>
+      <div class="avoid-confirm" id="avoidConfirm">
+        <p>ケガや持病などで、この行動そのものを避けたい場合に使ってください。今後この行動を一切提示しなくなります（「今日は難しい」とは別で、その日だけの調整ではありません）。</p>
+        <div class="avoid-actions">
+          <button class="secondary" id="avoidCancel">やめる</button>
+          <button class="primary danger" id="avoidConfirmBtn">今後、提示しない</button>
+        </div>
+      </div>
 
       <div class="quick-state" id="quickState"></div>
     </div>
@@ -276,7 +300,7 @@ tr.excluded td:first-child{text-decoration:line-through}
       <div class="choice-grid" id="choiceGrid"></div>
       <button class="primary" id="adaptBtn" style="margin-top:13px" disabled>今日に合わせて変える</button>
       <div class="alt-card" id="altCard">
-        <div class="kicker">LIGHTER OPTION</div>
+        <div class="kicker">もっと軽い案</div>
         <div class="t" id="altTitle"></div>
         <p class="microcopy" id="altWhy"></p>
         <button class="primary" id="useAlt" style="margin-top:11px">これならできそう</button>
@@ -304,6 +328,10 @@ tr.excluded td:first-child{text-decoration:line-through}
     <div class="section">
       <div class="section-head"><div class="section-title">続けやすいパターン</div><div class="section-note">記録が貯まると増えます</div></div>
       <div class="card insight-card" id="patternList"></div>
+    </div>
+    <div class="section" id="avoidedSection" hidden>
+      <div class="section-head"><div class="section-title">体に合わないと伝えた行動</div><div class="section-note">今後の提案から除外中</div></div>
+      <div class="card insight-card"><div class="avoided-list" id="avoidedList"></div></div>
     </div>
   </section>
 
@@ -417,7 +445,12 @@ const DEFAULT_STATE = {
   days:{},                 // 'YYYY-MM-DD' -> record
   experimentOn:true,       // H1 のランダム割付を行うか
   hasSynthetic:false,      // デモ用生成データが混入しているか
-  ctxDefaults:{energy:'普通', availableMin:15, canGoOut:false}
+  ctxDefaults:{energy:'普通', availableMin:15, canGoOut:false},
+  /* 「体力」は疲労感などその日限りの状態で、ケガ・持病など恒久的な身体制約を表せない。
+     例えば人工関節が入っている人が「体力:高」と正直に答えると、その日は膝に負担のある
+     行動（スクワット等）が候補に入りうる。この一覧に入れた行動IDは、体力設定に関わらず
+     Adaptive・Fixed のどちらのアームでも一切候補にしない。安全側の除外であり学習では動かない。 */
+  permanentExclude:[]
 };
 
 function loadState(){
@@ -425,7 +458,8 @@ function loadState(){
     const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
     if(!raw) return {...DEFAULT_STATE, days:{}};
     const p = JSON.parse(raw);
-    return {...DEFAULT_STATE, ...p, days:p.days||{}, ctxDefaults:{...DEFAULT_STATE.ctxDefaults, ...(p.ctxDefaults||{})}};
+    return {...DEFAULT_STATE, ...p, days:p.days||{}, ctxDefaults:{...DEFAULT_STATE.ctxDefaults, ...(p.ctxDefaults||{})},
+            permanentExclude: Array.isArray(p.permanentExclude) ? p.permanentExclude : []};
   }catch(e){
     return {...DEFAULT_STATE, days:{}};
   }
@@ -467,7 +501,10 @@ function passesGate(action){
   return action.hv >= CONFIG.HEALTH_VALUE_THRESHOLD;
 }
 function gatedLibrary(){
-  return ACTION_LIBRARY.filter(passesGate);
+  const excluded = new Set(state.permanentExclude||[]);
+  // 本人が「体に合わない」と申告した行動は、健康価値を満たしていても対象から外す。
+  // 安全側の除外であり、Gate（健康価値）ともFit（学習）とも独立している。
+  return ACTION_LIBRARY.filter(a => passesGate(a) && !excluded.has(a.id));
 }
 
 /** System Constraint。文脈的に物理的・安全上こなせない候補を落とす。学習とは分離。 */
@@ -534,7 +571,18 @@ function selectAction(ctx, arm, excludeIds, refKey){
 
   if(arm === 'fixed'){
     const id = FIXED_PLAN[dowOf(base)];
-    const a = ACTION_LIBRARY.find(x=>x.id===id);
+    let a = ACTION_LIBRARY.find(x=>x.id===id);
+    // 固定プログラムは曜日だけで決まり本来は文脈を見ないが、本人が「体に合わない」と
+    // 申告した行動だけは安全のため例外的に避ける。曜日インデックスをずらして代替する
+    // ことで、対照群としての「裁量なく決まる」という性質は保つ。
+    if(a && !gated.some(g=>g.id===a.id)){
+      const dow = dowOf(base);
+      for(let shift=1; shift<=6; shift++){
+        const alt = ACTION_LIBRARY.find(x=>x.id===FIXED_PLAN[(dow+shift)%7]);
+        if(alt && gated.some(g=>g.id===alt.id)){ a = alt; break; }
+      }
+      if(!gated.some(g=>g.id===a.id)) a = gated[0] || null;
+    }
     return {action:a, score:null, parts:[], excludedByGate, infeasible:[], candidates:[]};
   }
 
@@ -885,6 +933,12 @@ function renderToday(){
       : 'いま始めても、今日の予定を崩しにくい行動です。';
   }
 
+  // 体に合わない申告UI（決定済みの日・候補なしの日は出さない）
+  $('avoidConfirm').classList.remove('show');
+  $('avoidBtn').hidden = !a || rec.done !== null;
+  if(a) $('avoidConfirm').querySelector('p').textContent =
+    `ケガや持病などで「${a.t}」そのものを避けたい場合に使ってください。今後この行動を一切提示しなくなります（「今日は難しい」とは別で、その日だけの調整ではありません）。`;
+
   // 実験アームの表示（対照群であることを隠さない）
   const tag = $('armTag');
   if(state.experimentOn && a){
@@ -1207,6 +1261,35 @@ function renderProgress(){
     row2.append(body);
     pl.append(row2);
   }
+  // 時間帯・分野のルールは、勤務シフトや天候など他の要因と交絡しやすい。
+  // （例: 夜勤明けの休みが「朝」に記録され、実際は休みの効果を時間帯の効果と誤認しうる）
+  // 所要時間・移動の有無は物理的な制約に近く、この懸念は小さい。
+  const confoundRisk = rules.some(r => ['slot','cat'].includes(r.key) && (r.status==='confirmed'||r.status==='inverted'));
+  if(confoundRisk){
+    pl.append(el('div','microcopy',
+      '時間帯や分野の傾向には、勤務や天候など記録していない他の要因が混ざっている可能性があります。所要時間や移動の有無ほど確実な根拠ではありません。'));
+  }
+
+  // 体に合わないと伝えた行動（恒久除外）の管理
+  const avoidedIds = state.permanentExclude || [];
+  $('avoidedSection').hidden = avoidedIds.length === 0;
+  if(avoidedIds.length){
+    const al = $('avoidedList'); al.textContent='';
+    for(const id of avoidedIds){
+      const a = ACTION_LIBRARY.find(x=>x.id===id);
+      const row = el('div','avoided-row');
+      row.append(el('span',null, a ? a.t : id));
+      const back = el('button',null,'戻す');
+      back.onclick = ()=>{
+        state.permanentExclude = state.permanentExclude.filter(x=>x!==id);
+        saveState();
+        renderProgress();
+        notify('提案の対象に戻しました');
+      };
+      row.append(back);
+      al.append(row);
+    }
+  }
 }
 function weeklyRates(n){
   const out = [];
@@ -1236,6 +1319,34 @@ $('undoBtn').onclick = ()=>{
   if(rec){ rec.done=null; rec.reason=null; delete rec.decidedAt; saveState(); }
   renderToday();
   notify('記録を取り消しました');
+};
+
+/* 「体力」は疲労感などその日限りの状態で、恒久的な身体制約（ケガ・持病）は表せない。
+   この行動を今後一切提示しない、という安全側の除外はここで扱う。 */
+$('avoidBtn').onclick = ()=> $('avoidConfirm').classList.toggle('show');
+$('avoidCancel').onclick = ()=> $('avoidConfirm').classList.remove('show');
+$('avoidConfirmBtn').onclick = ()=>{
+  const rec = state.days[today()];
+  if(!rec || !rec.actionId) return;
+  const id = rec.actionId;
+  if(!state.permanentExclude.includes(id)) state.permanentExclude.push(id);
+  saveState();
+  $('avoidConfirm').classList.remove('show');
+  // 今日まだ結果を記録していなければ、除外を反映して選び直す
+  if(rec.done===null && rec.arm==='adaptive'){
+    const ctx = currentContext();
+    const sel = selectAction(ctx,'adaptive');
+    if(sel.action){
+      rec.ctx=ctx; rec.actionId=sel.action.id; rec.min=sel.action.min; rec.cat=sel.action.cat;
+      rec.travel=sel.action.travel; rec.hv=sel.action.hv; rec.fit=sel.score; rec.why=sel.parts;
+      rec.excludedByGate=sel.excludedByGate;
+    }else{
+      rec.actionId=null;
+    }
+    saveState();
+  }
+  renderToday();
+  notify('この行動は今後提示しません');
 };
 
 /* ============================================================================
