@@ -448,6 +448,12 @@ const DEFAULT_STATE = {
   startDate:null,
   days:{},                 // 'YYYY-MM-DD' -> record
   experimentOn:true,       // H1 のランダム割付を行うか
+  /* 'premium'：状態適応＋「変える」が使える（有料 / 健保・企業提供）。
+     'free'：常に固定プログラム。「変える」は使えず、ランダム割付の対象にも入らない。
+     experimentOn によるランダム割付は premium 内でのみ働く。free をこの割付に混ぜると、
+     CONTROL_SHARE の確率で無料ユーザーに有料機能が漏れる／有料ユーザーが無料体験に
+     落ちる、という両方向の事故になる。plan は日替わりではなく利用者に固定の属性。 */
+  plan:'premium',
   hasSynthetic:false,      // デモ用生成データが混入しているか
   ctxDefaults:{energy:'普通', availableMin:15, canGoOut:false},
   /* 「体力」は疲労感などその日限りの状態で、ケガ・持病など恒久的な身体制約を表せない。
@@ -777,7 +783,10 @@ function ensureToday(){
   if(state.days[k]) return state.days[k];
 
   const ctx = currentContext();
-  const arm = state.experimentOn ? (Math.random() < CONFIG.CONTROL_SHARE ? 'fixed' : 'adaptive') : 'adaptive';
+  // free は常に固定。ランダム割付（H1測定）は premium 内でのみ行う。
+  const arm = state.plan === 'free' ? 'fixed'
+    : state.experimentOn ? (Math.random() < CONFIG.CONTROL_SHARE ? 'fixed' : 'adaptive')
+    : 'adaptive';
   const sel = selectAction(ctx, arm);
   const a = sel.action;
 
@@ -795,6 +804,29 @@ function ensureToday(){
   state.days[k] = rec;
   saveState();
   return rec;
+}
+
+/** plan・experimentOn を切り替えた直後に呼ぶ。当日がまだ未決定なら、新しい設定で
+    アームと提案を選び直す。決定済みの日は書き換えない（監査可能性を守る）。
+    これがないと、コンソールで free に切り替えても「今日」はプラン変更前の
+    アームのまま固まり、切替の効果をその場で確認できない。 */
+function resyncTodayIfUndecided(){
+  const rec = state.days[today()];
+  if(!rec || rec.done !== null) return;
+  const arm = state.plan === 'free' ? 'fixed'
+    : state.experimentOn ? (Math.random() < CONFIG.CONTROL_SHARE ? 'fixed' : 'adaptive')
+    : 'adaptive';
+  const sel = selectAction(rec.ctx, arm);
+  rec.arm = arm;
+  if(sel.action){
+    rec.actionId=sel.action.id; rec.min=sel.action.min; rec.cat=sel.action.cat;
+    rec.travel=sel.action.travel; rec.hv=sel.action.hv; rec.fit=sel.score; rec.why=sel.parts;
+    rec.excludedByGate=sel.excludedByGate;
+  }else{
+    rec.actionId=null;
+  }
+  rec.rejected=[]; rec.switched=false; delete rec.originalActionId;
+  saveState();
 }
 
 function recordOutcome(done, reasonId){
@@ -960,11 +992,14 @@ function renderToday(){
   if(a) $('avoidConfirm').querySelector('p').textContent =
     `ケガや持病などで「${a.t}」そのものを避けたい場合に使ってください。今後この行動を一切提示しなくなります（「今日は難しい」とは別で、その日だけの調整ではありません）。`;
 
-  // 実験アームの表示（対照群であることを隠さない）
+  // プラン・対照群であることを隠さない。free は常時表示、premium は実験中のみ表示。
   const tag = $('armTag');
-  if(state.experimentOn && a){
+  if(a && state.plan === 'free'){
     tag.hidden = false;
-    tag.textContent = rec.arm==='adaptive' ? '状態に合わせた提案' : '固定プログラム（比較用）';
+    tag.textContent = '無料プラン（固定プログラム）';
+  }else if(a && state.experimentOn){
+    tag.hidden = false;
+    tag.textContent = rec.arm==='adaptive' ? '状態に合わせた提案' : '固定プログラム（測定のための対照群）';
   }else{
     tag.hidden = true;
   }
@@ -1127,12 +1162,16 @@ $('adaptBtn').onclick = ()=>{
   if(!pickedReason) return;
   const rec = state.days[today()];
 
-  // 対照群では代替提示を行わない（実験の妥当性を守るため）
+  // 固定プログラムの日は代替提示を行わない。理由は2通りあり、伝え方を変える。
+  //  ・free プラン: 機能として提供していない（有料/健保・企業提供で使える）
+  //  ・premium だが今日はランダム割付で対照群: H1測定のための運用（研究文脈のみ真）
   if(rec && rec.arm === 'fixed'){
     recordOutcome(false, pickedReason.id);
     $('altCard').classList.remove('show');
     const n = $('altNone');
-    n.textContent = '今日は固定プログラムの日のため、代替案の提示は行いません。理由は記録しました。比較のために必要な運用です。';
+    n.textContent = state.plan === 'free'
+      ? '状態に合わせて変える機能は、有料プラン（または健保・企業提供のプラン）でご利用いただけます。今日の分は理由を記録しました。'
+      : '今日は固定プログラムの日のため、代替案の提示は行いません。理由は記録しました。効果を正しく測るための運用です。';
     n.classList.add('show');
     notify('理由を記録しました');
     setTimeout(()=>{ show('today'); renderToday(); }, 1400);
@@ -1227,12 +1266,26 @@ function renderProgress(){
     $('trendNote').textContent = '状態に合わせた提案の日だけを集計しています（固定プログラムの日は含みません）。日数が少ない週は、率が大きく振れます。';
   }
 
-  // 「今日は難しい」を前向きに位置づける（失敗ではなく、変えて続いた実績として見せる）
+  // 「今日は難しい」を前向きに位置づける（失敗ではなく、変えて続いた実績として見せる）。
+  // 「46%」のような素の割合を先頭に出すと「半分以上は変えても駄目だった」という
+  // 引き算を読み手にさせてしまい逆効果になりうる。まず強みの割合（できた日に占めるシェア）
+  // を「n日に1日」という自然頻度で見せ、回復率は割合の言い切りを避けて帯で表現する。
   const kn = $('kaeruNote');
   if(m.kaeru.hardTapped >= 3){
     kn.hidden = false;
-    kn.innerHTML = `「今日は難しい」を選んだ日のうち、<b>${pct(m.kaeru.recovery)}</b>は軽い代替案で結局できています。`+
-      `できた日の<b>${pct(m.kaeru.shareOfDone)}</b>は、最初の提案どおりではなく「変える」から生まれました。`;
+    const share = m.kaeru.shareOfDone;
+    const shareN = share > 0 ? Math.round(1 / share) : Infinity;
+    // 「n日に1日」は達成感が伝わる範囲（〜12日に1日程度）でだけ使う。
+    // それより希薄だと逆に「たったそれだけ」という印象になり、正確でも逆効果になる。
+    const shareClause = (shareN <= 12)
+      ? `できた日の<b>${shareN}日に1日</b>は、最初の提案が難しかったときに「変える」で見つけた代替案から生まれています。`
+      : '';
+    const r = m.kaeru.recovery;
+    const recoveryClause = r >= 0.6 ? `「今日は難しい」と思った日も、<b>${pct(r)}</b>は変えることで結局実行できています。`
+      : r >= 0.4 ? '「今日は難しい」と思った日も、半分近くは変えることで結局実行できています。'
+      : r > 0    ? '「今日は難しい」と思った日の一部は、変えることで結局実行できています。'
+      :            '「今日は難しい」と思った日の記録も、少しずつ増えています。';
+    kn.innerHTML = shareClause + recoveryClause;
   }else{
     kn.hidden = true;
   }
@@ -1626,14 +1679,28 @@ function paneExperiment(m){
   box.append(mk('H3','Persistence — 効果が持続するか','解約率と LTV を決める。成立まで多年度値引きと営業組織の拡大を行わない。', m.h3));
   f.append(panel('仮説ゲート', box));
 
-  f.append(panel('割付の設定', (()=>{
+  f.append(panel('割付の設定（premiumプラン内のみ）', (()=>{
     const wrap = el('div');
     wrap.append(el('p',null, state.experimentOn
-      ? '現在、日ごとに 50% の確率で固定プログラム（対照群）を提示しています。H1 のデータはこの割付からしか得られません。'
-      : 'ランダム割付は無効です。利用者は常に状態適応の提示を受けますが、H1 の比較データは増えません。'));
+      ? `現在、premium プランの利用者に対して、日ごとに ${Math.round(CONFIG.CONTROL_SHARE*100)}% の確率で固定プログラム（対照群）を提示しています。H1 のデータはこの割付からしか得られません。`
+      : 'ランダム割付は無効です。premium 利用者は常に状態適応の提示を受けますが、H1 の比較データは増えません。'));
     const row = el('div','row-actions');
     const t = el('button','cbtn', state.experimentOn ? 'ランダム割付を止める' : 'ランダム割付を再開する');
-    t.onclick = ()=>{ state.experimentOn = !state.experimentOn; saveState(); renderConsole(); };
+    t.onclick = ()=>{ state.experimentOn = !state.experimentOn; saveState(); resyncTodayIfUndecided(); renderConsole(); };
+    row.append(t);
+    wrap.append(row);
+    return wrap;
+  })()));
+
+  f.append(panel('プラン（無料/有料の境界プレビュー）', (()=>{
+    const wrap = el('div');
+    wrap.append(el('p',null,
+      'free は常に固定プログラムで、ランダム割付の対象にも入らない（H1測定を汚染しない）。premium は上の割付に従う。'+
+      '課金プランと測定用のランダム割付を同じ確率変数で表そうとすると、free 利用者に premium 機能が漏れる／premium 利用者が'+
+      `free 体験に落ちる、という両方向の事故になるため分離してある（現在のプラン: ${state.plan}）。`));
+    const row = el('div','row-actions');
+    const t = el('button','cbtn', state.plan==='free' ? 'premiumプレビューに戻す' : 'freeプランをプレビュー');
+    t.onclick = ()=>{ state.plan = state.plan==='free' ? 'premium' : 'free'; saveState(); resyncTodayIfUndecided(); renderConsole(); renderToday(); };
     row.append(t);
     wrap.append(row);
     return wrap;
