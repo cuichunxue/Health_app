@@ -84,6 +84,9 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .avoided-row:last-child{border-bottom:0}
 .avoided-row span{font-size:12px;color:var(--ink2)}
 .avoided-row button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--muted);min-height:36px}
+.kaeru-note{margin-top:12px;background:var(--brand-soft);border-radius:14px;padding:14px 15px;font-size:12px;line-height:1.75;color:var(--brand-ink)}
+.kaeru-note[hidden]{display:none}
+.kaeru-note b{font-weight:900}
 .reason-box dl{margin:9px 0 0;display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px}
 .reason-box dt{color:var(--muted)}
 .reason-box dd{margin:0;font-variant-numeric:tabular-nums}
@@ -321,6 +324,7 @@ tr.excluded td:first-child{text-decoration:line-through}
       <div id="trendWrap"></div>
       <div class="microcopy" id="trendNote"></div>
     </div>
+    <div class="kaeru-note" id="kaeruNote" hidden></div>
     <div class="section">
       <div class="section-head"><div class="section-title">プログラム進捗</div><div class="section-note">完了の目安は実行60%</div></div>
       <div class="card progress-card" id="programCard"></div>
@@ -875,8 +879,25 @@ function metrics(){
   const calendarRate = prog.elapsed ? prog.doneDays / prog.elapsed : null;
   const offerRate = rate(all);   // 提示日ベース（= アプリ内部の実行率）
 
+  /* 「変える」の寄与。事業の差別化はここで測る。
+     hardTapped   = 最初の提案を「難しい」として理由を選んだ日（Adaptiveのみ。Fixedは代替を出さない）
+     switchedOK   = 軽い代替案を受け入れて実行できた日
+     recovery     = 難しいと言った日のうち、結局実行できた割合
+     shareOfDone  = Adaptive全実行日のうち「変える」経由が占める割合
+     ※ reason は代替案を受け入れて完了した時点で recordOutcome(true,null) により null に
+       上書きされる（switched は上書きされない）。reason だけで数えると成功した「変える」が
+       抜け落ちるため、switched も合わせて見る。 */
+  const hardTapped = adaptive.filter(d => d.switched === true || d.reason !== null).length;
+  const switchedOK = adaptive.filter(d => d.switched === true && d.done === true).length;
+  const doneAdaptive = adaptive.filter(d => d.done === true).length;
+  const kaeru = {
+    hardTapped, switchedOK,
+    recovery: hardTapped ? switchedOK / hardTapped : null,
+    shareOfDone: doneAdaptive ? switchedOK / doneAdaptive : null
+  };
+
   return {all, adaptive, fixed, rA, rF, lift, reasonCounts, h1, h2, h3, gateExcluded, sorted,
-          prog, openedDays, missedDays, calendarRate, offerRate};
+          prog, openedDays, missedDays, calendarRate, offerRate, kaeru};
 }
 
 function weekWindow(){
@@ -1206,6 +1227,16 @@ function renderProgress(){
     $('trendNote').textContent = '状態に合わせた提案の日だけを集計しています（固定プログラムの日は含みません）。日数が少ない週は、率が大きく振れます。';
   }
 
+  // 「今日は難しい」を前向きに位置づける（失敗ではなく、変えて続いた実績として見せる）
+  const kn = $('kaeruNote');
+  if(m.kaeru.hardTapped >= 3){
+    kn.hidden = false;
+    kn.innerHTML = `「今日は難しい」を選んだ日のうち、<b>${pct(m.kaeru.recovery)}</b>は軽い代替案で結局できています。`+
+      `できた日の<b>${pct(m.kaeru.shareOfDone)}</b>は、最初の提案どおりではなく「変える」から生まれました。`;
+  }else{
+    kn.hidden = true;
+  }
+
   // プログラム
   const pc = $('programCard'); pc.textContent='';
   const ps = m.prog;
@@ -1493,6 +1524,18 @@ function paneEngine(m){
     '健保・企業が完了率として見るのは暦日ベース。アプリを開かなかった日は「実行しなかった日」であり、母数から抜いてはならない。'+
     '社外へ出す数字は、必ず暦日ベースを使うこと。')));
 
+  // 「変える」の寄与。事業説明の第一級の資産として、母数の違いの直後・パイプラインの前に置く。
+  const kg = el('div','grid');
+  kg.append(
+    m.kaeru.hardTapped ? metricTile(String(m.kaeru.hardTapped),'「今日は難しい」を選んだ日') : metricTile('判定不能','「今日は難しい」を選んだ日','na'),
+    m.kaeru.hardTapped ? metricTile(String(m.kaeru.switchedOK),'代替案を受け入れて実行できた日') : metricTile('判定不能','代替案を受け入れて実行できた日','na'),
+    m.kaeru.recovery!==null ? metricTile(pct(m.kaeru.recovery),'「難しい」からの回復率','pos') : metricTile('判定不能','「難しい」からの回復率','na'),
+    m.kaeru.shareOfDone!==null ? metricTile(pct(m.kaeru.shareOfDone),'全実行日に占める「変える」経由の割合','pos') : metricTile('判定不能','全実行日に占める「変える」経由の割合','na')
+  );
+  f.append(panel('「変える」の寄与（差別化の核）', kg, el('p',null,
+    '固定メニューが失敗を記録するだけの場面で、Today One は健康価値の基準を落とさない代替案を出し、実際に実行へ変えている。'+
+    'この回復がなければ、上の「状態適応 実行率」は「全実行日に占める『変える』経由の割合」の分だけ低かった数字になる。')));
+
   const pipe = el('div','pipe');
   const steps = [['Action Library',0],['Health Value Gate',1],['Context',0],['Execution Fit',0],['Today One',0],['実行/未実行',0],['Reason Classifier',1],['Rule Update',0]];
   steps.forEach(([label,key],i)=>{
@@ -1707,13 +1750,31 @@ function seedSynthetic(days){
     }
     const slot = ['朝','昼','夕','夜'][Math.floor(Math.random()*4)];
     if(arm==='adaptive' && slot==='夕') p += 0.09;
-    const done = Math.random() < Math.min(p, 0.94);
+    let done = Math.random() < Math.min(p, 0.94);
+    let switched=false, actionId=a.id, min=a.min, cat=a.cat, travel=a.travel, hv=a.hv, reason=null;
+
+    if(!done){
+      reason = REASONS[Math.floor(Math.random()*REASONS.length)].id;
+      // Adaptiveだけ「今日は難しい」→ 代替案 という現実の遷移も再現する。
+      // switched:false 固定だと「変える」の寄与が常に0件になり、この機能自体を過小に見せてしまう。
+      if(arm==='adaptive' && Math.random()<0.55){
+        const alt = gated[Math.floor(Math.random()*gated.length)];
+        if(Math.random()<0.62){ // 軽い代替案は元の案より受け入れやすい
+          done=true; switched=true; reason=null;
+          actionId=alt.id; min=alt.min; cat=alt.cat; travel=alt.travel; hv=alt.hv;
+        }else{
+          switched=true; // 代替案は受け入れたが、その日はやはり実行できなかった
+          actionId=alt.id; min=alt.min; cat=alt.cat; travel=alt.travel; hv=alt.hv;
+        }
+      }
+    }
+
     state.days[k] = {
       date:k, arm, ctx:{energy:'普通', availableMin:15, canGoOut:Math.random()<0.5, maxIntensity:5, slot},
-      actionId:a.id, min:a.min, cat:a.cat, travel:a.travel, hv:a.hv, slot,
+      actionId, min, cat, travel, hv, slot,
       fit:null, why:[], excludedByGate: ACTION_LIBRARY.length-gated.length, infeasibleCount:0,
-      done, reason: done ? null : REASONS[Math.floor(Math.random()*REASONS.length)].id,
-      switched:false, offeredAt:new Date().toISOString(), synthetic:true
+      done, reason: done ? null : reason,
+      switched, offeredAt:new Date().toISOString(), synthetic:true
     };
   }
   // 既に今日で開始済みでも、生成した最古の日まで開始日を巻き戻す
