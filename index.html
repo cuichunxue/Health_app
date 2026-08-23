@@ -1700,6 +1700,11 @@ $('adaptBtn').onclick = ()=>{
   $('altTitle').textContent = sel.action.t;
   $('altWhy').textContent = `健康価値 ${sel.action.hv} 点・${sel.action.min}分。負担を下げても、基準を満たす候補だけから選んでいます。`;
   $('altCard').classList.add('show');
+  /* もっと軽い案が実際に見つかった瞬間にも音を鳴らす。
+     鳴らすのはここだけで、候補が尽きた場合（altNone）や固定プログラムの日には
+     鳴らさない。どちらも「変えられていない」ため、鳴らすと事実と違う合図になる。
+     この2か所は上の分岐で return 済み。 */
+  playSound('adapt');
   $('useAlt').onclick = ()=>{
     switchToAlternative(sel.action, pickedReason.id);
     show('today'); renderToday();
