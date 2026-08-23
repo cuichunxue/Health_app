@@ -186,6 +186,11 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .discovery-panel .dpbody{flex:1;min-width:0}
 .discovery-panel .dplabel{font-size:9.5px;font-weight:900;letter-spacing:.08em;margin-bottom:3px}
 .discovery-panel .dptext{font-size:12px;line-height:1.7}
+/* 「次に何が分かりそうか」の一行。今日の発見より一段弱く見せ、主役を奪わない。 */
+.discovery-panel .dpnext{
+  margin-top:9px;padding-top:8px;border-top:1px solid rgba(128,128,128,.22);
+  font-size:10.5px;line-height:1.65;opacity:.85;
+}
 .discovery-panel.dp-card{background:var(--brand-soft);color:var(--brand-ink)}
 .discovery-panel.dp-progress{background:var(--soft);color:var(--ink2);border:1px solid var(--line)}
 .discovery-panel.dp-plain{background:var(--soft);color:var(--muted);border:1px solid var(--line)}
@@ -1385,39 +1390,47 @@ function renderDiscoveryPanel(el_, disc, {fresh}={}){
   el_.classList.toggle('dpNew', !!fresh);
   el_.className = 'discovery-panel' + (fresh ? ' dpNew' : '');
   el_.textContent = '';
+  const body = el('div','dpbody');
   if(disc.kind === 'card'){
     el_.classList.add('dp-card');
-    const icon = el('div','dpicon', disc.card.rarity==='伝説' ? '🏆' : '✨');
-    const body = el('div','dpbody');
     body.append(el('div','dplabel', `新しい「わたしカード」を発見 ・ ${disc.card.rarity}`));
     body.append(el('div','dptext', `《${disc.card.title}》${disc.card.desc}`+
       (disc.extra ? `　ほか${disc.extra}枚` : '')));
-    el_.append(icon, body);
+    el_.append(el('div','dpicon', disc.card.rarity==='伝説' ? '🏆' : '✨'), body);
   }else if(disc.kind === 'rule'){
     el_.classList.add('dp-card');
-    const icon = el('div','dpicon', '🔍');
-    const body = el('div','dpbody');
     body.append(el('div','dplabel','今日の発見'));
     body.append(el('div','dptext', disc.rule.desc + (disc.extra ? `　ほか${disc.extra}件` : '')));
-    el_.append(icon, body);
+    el_.append(el('div','dpicon','🔍'), body);
   }else if(disc.kind === 'progress'){
     el_.classList.add('dp-progress');
-    const body = el('div','dpbody');
     body.append(el('div','dplabel','今日の発見'));
     body.append(el('div','dptext', `データが集まってきました。あと${disc.remain}回で、新しい傾向がわかるかもしれません。`));
     el_.append(el('div','dpicon','🔍'), body);
   }else if(disc.kind === 'settled'){
     el_.classList.add('dp-plain');
-    const body = el('div','dpbody');
     body.append(el('div','dplabel','今日の発見'));
     body.append(el('div','dptext','所要時間・時間帯・移動・分野は、今のところすべて確認済みです。新しい行動を試すと、わたし図鑑に新しいカードが増えることがあります。'));
     el_.append(el('div','dpicon','📖'), body);
   }else{
     el_.classList.add('dp-plain');
-    const body = el('div','dpbody');
     body.append(el('div','dplabel','今日の発見'));
     body.append(el('div','dptext','記録が育っています。続けると、あなたの傾向が見えてきます。'));
     el_.append(el('div','dpicon','🌱'), body);
+  }
+
+  /* 達成感 →「意味」→「未完了感」の順に並べる。発見を見せたあと、次に何が分かり
+     そうかを一行だけ添えて、その日のループを閉じきらないようにする。
+     カードが出た日は、これまで次への手がかりが一切出ず「もらって終わり」に
+     なっていた（Journey上の翌日再訪が最も弱い箇所）。
+     'progress' は本文が既に残り回数を伝えているので重複させない。
+     'settled' は4軸すべて確認済みで、この仕組みからはもう出るものがないため添えない
+     （無いものを予告すると、以前直した「果たされない約束」の再発になる）。
+     残り回数は保存せず毎回その場で計算する（記録が増えれば数字も変わるため）。 */
+  if(disc.kind === 'card' || disc.kind === 'rule' || disc.kind === 'none'){
+    const nx = nextDiscoveryPreview();
+    if(nx) body.append(el('div','dpnext',
+      `🔍 次は「${nx.label}」の傾向が、あと${nx.remain}回でわかるかもしれません`));
   }
 }
 
