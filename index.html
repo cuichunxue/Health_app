@@ -29,6 +29,37 @@ body{
 }
 button{font:inherit;cursor:pointer;color:inherit}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px}
+
+/* ---------- 押したことが必ず分かるようにする ----------
+   これまで :active も :hover も定義しておらず、押しても画面が変わらない操作
+   （なぜこれ？・体に合わない・記録を取り消す等）では、押せたのかどうかが
+   分からなかった。音は達成の合図として6か所にだけ使う方針なので、
+   「押した」という手応えは音ではなく見た目で全ボタンに返す。
+   ・押している間だけ少し縮んで沈む（transform）
+   ・同時に明度を落として、背景色に関係なく変化が分かるようにする
+   ・タップ遅延と端末既定のハイライトは切って、自前の表現に統一する */
+button{
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .07s ease, filter .07s ease;
+}
+button:active{transform:scale(.97); filter:brightness(.93)}
+/* 文字だけのボタンは縮小が伝わりにくいので、濃さの変化を強めにする */
+.link:active{opacity:.55; filter:none}
+/* 小さい円形・タブ状のものは、同じ比率だと変化が小さいので少し深く沈める */
+.sound-toggle:active, .nav:active, .state-chip:active, .ctab:active{transform:scale(.92)}
+/* 押している間だけ面の色も動かし、輪郭のない要素でも変化を確実にする */
+.nav:active{filter:none; background:var(--soft)}
+.state-chip:active, .choice:active, .cbtn:active, .ctab:active{background:var(--brand-soft)}
+@media (hover:hover){
+  button:hover{filter:brightness(.97)}
+  .link:hover{filter:none; opacity:.75}
+}
+/* 動きを減らす設定では拡大縮小をやめ、色の変化だけで押下を伝える */
+@media (prefers-reduced-motion:reduce){
+  button:active{transform:none}
+  .sound-toggle:active, .nav:active, .state-chip:active, .ctab:active{transform:none}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 .app{max-width:430px;margin:auto;min-height:100vh;background:var(--bg);padding-bottom:96px}
@@ -2036,7 +2067,12 @@ function weeklyRates(n){
 
 /* ---------- 10. EVENT WIRING ---------- */
 document.querySelectorAll('.nav').forEach(n=> n.onclick = ()=> show(n.dataset.screen));
-$('whyBtn').onclick = ()=> $('whyBox').classList.toggle('show');
+/* 開閉ボタンは、開いているかどうかを aria-expanded でも伝える
+   （画面上は下に箱が出るので見て分かるが、読み上げでは分からないため）。 */
+$('whyBtn').onclick = ()=>{
+  const open = $('whyBox').classList.toggle('show');
+  $('whyBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+};
 $('soundBtn').onclick = ()=>{
   state.sound = !state.sound;
   saveState();
@@ -2078,8 +2114,14 @@ $('undoBtn').onclick = ()=>{
 
 /* 「体力」は疲労感などその日限りの状態で、恒久的な身体制約（ケガ・持病）は表せない。
    この行動を今後一切提示しない、という安全側の除外はここで扱う。 */
-$('avoidBtn').onclick = ()=> $('avoidConfirm').classList.toggle('show');
-$('avoidCancel').onclick = ()=> $('avoidConfirm').classList.remove('show');
+$('avoidBtn').onclick = ()=>{
+  const open = $('avoidConfirm').classList.toggle('show');
+  $('avoidBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+};
+$('avoidCancel').onclick = ()=>{
+  $('avoidConfirm').classList.remove('show');
+  $('avoidBtn').setAttribute('aria-expanded','false');
+};
 $('avoidConfirmBtn').onclick = ()=>{
   const rec = state.days[today()];
   if(!rec || !rec.actionId) return;
