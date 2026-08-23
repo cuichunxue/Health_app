@@ -91,6 +91,15 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .garden-scene .sun{position:absolute;right:24px;top:18px;width:38px;height:38px;background:#ffd77e;border-radius:50%;box-shadow:0 0 0 10px rgba(255,215,126,.13)}
 .garden-scene .hill{position:absolute;bottom:-50px;width:270px;height:118px;border-radius:50%;background:#9bcea6;left:-60px;opacity:.85}
 .garden-scene .hill2{position:absolute;bottom:-42px;width:236px;height:100px;border-radius:50%;background:#6fb886;right:-104px;opacity:.85}
+/* 累計30日以上で、実カレンダーの季節を丘の色に反映する */
+.garden-scene.season-spring .hill{background:#f3b8c6}
+.garden-scene.season-spring .hill2{background:#e08fa6}
+.garden-scene.season-summer .hill{background:#7fc99a}
+.garden-scene.season-summer .hill2{background:#4fa876}
+.garden-scene.season-autumn .hill{background:#e3b169}
+.garden-scene.season-autumn .hill2{background:#c98a4b}
+.garden-scene.season-winter .hill{background:#dbe6e6}
+.garden-scene.season-winter .hill2{background:#aebfc2}
 .garden-scene .plant{position:absolute;left:50%;bottom:38px;transform:translateX(-50%);transition:transform .3s}
 @media (prefers-reduced-motion:reduce){.garden-scene .plant{transition:none}}
 .garden-scene .plant .stem{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:6px;background:#8a5a34;border-radius:3px}
@@ -102,9 +111,17 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .garden-progress{display:flex;gap:5px}
 .garden-dot{flex:1;height:6px;border-radius:3px;background:var(--line)}
 .garden-dot.on{background:var(--brand)}
+.garden-discover{display:flex;gap:8px;align-items:center;margin-top:2px}
+.garden-discover .lab{font-size:10px;color:var(--muted)}
+.garden-discover .dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;background:var(--soft);border:1px solid var(--line);opacity:.35;filter:grayscale(1)}
+.garden-discover .dot.on{opacity:1;filter:none;background:var(--brand-soft)}
 
 /* ---------- わたし図鑑 (cards) ---------- */
-.cards-card{padding:14px}
+.cards-card{padding:14px;display:flex;flex-direction:column;gap:14px}
+.set-head{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 -2px}
+.cards-card>.set-head:first-child{margin-top:0}
+.set-name{font-size:12.5px;font-weight:900}
+.set-count{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .mycard{border-radius:14px;padding:13px;min-height:118px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
 .mycard.locked{background:var(--soft);color:var(--muted)}
@@ -507,7 +524,8 @@ const DEFAULT_STATE = {
      行動（スクワット等）が候補に入りうる。この一覧に入れた行動IDは、体力設定に関わらず
      Adaptive・Fixed のどちらのアームでも一切候補にしない。安全側の除外であり学習では動かない。 */
   permanentExclude:[],
-  cardsSeen:[]              // 「わたし図鑑」で既に見た（新着演出を出さない）カードID
+  cardsSeen:[],             // 「わたし図鑑」で既に見た（新着演出を出さない）カードID
+  rulesSeen:[]              // これまでに一度でも確定したことのあるルールキー（庭のレア開花に使う）
 };
 
 function loadState(){
@@ -517,7 +535,8 @@ function loadState(){
     const p = JSON.parse(raw);
     return {...DEFAULT_STATE, ...p, days:p.days||{}, ctxDefaults:{...DEFAULT_STATE.ctxDefaults, ...(p.ctxDefaults||{})},
             permanentExclude: Array.isArray(p.permanentExclude) ? p.permanentExclude : [],
-            cardsSeen: Array.isArray(p.cardsSeen) ? p.cardsSeen : []};
+            cardsSeen: Array.isArray(p.cardsSeen) ? p.cardsSeen : [],
+            rulesSeen: Array.isArray(p.rulesSeen) ? p.rulesSeen : []};
   }catch(e){
     return {...DEFAULT_STATE, days:{}};
   }
@@ -1016,6 +1035,52 @@ function ruleByKey(rules, key){
 
 /* カードの解錠条件はすべて、実データ（metrics/derivedRules）から判定する。
    一度も達成していない条件を「達成した」と表示することはない。 */
+/* 「乗り越えた瞬間」カード（旧: RARE想定）は、統計的なルール確定を待たない。
+   単発の実データ（その日の ctx／min／実行有無）だけで判定できる、いわば「記録」型の
+   実績。ガチャ抽選や解釈の余地なしに、常に同じ入力から同じ結果が出る。 */
+function overcomeCards(m){
+  const chrono = [...m.all].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const has = pred => chrono.some(pred);
+
+  // 週3の壁: 任意の7日連続窓で実行3日以上
+  const week3 = (()=>{
+    for(let i=0;i<chrono.length;i++){
+      const start = chrono[i].date, end = addDays(start, 6);
+      const win = chrono.filter(d=> d.date>=start && d.date<=end);
+      if(win.filter(d=>d.done===true).length >= 3) return true;
+    }
+    return false;
+  })();
+
+  /* また始められた: 実行できた日と日で、暦日で5日以上あいだが空いた（＝4日以上
+     何も記録がない）ペアが一度でもあれば true。
+     未開封（アプリを開かなかった）日は state.days に記録自体が存在しないため、
+     「実行しなかった日が続いた」を配列の要素数で数えると空白そのものを見逃す
+     （実測: 未開封日を挟んだ再開が検出できないバグがあった）。日付の実差分で測る。 */
+  const welcomeBack = (()=>{
+    const doneDates = chrono.filter(d=>d.done===true).map(d=>d.date).sort();
+    for(let i=1;i<doneDates.length;i++){
+      let k = doneDates[i-1], steps = 0;
+      while(k !== doneDates[i] && steps < 366){ k = addDays(k,1); steps++; }
+      if(steps >= 5) return true;
+    }
+    return false;
+  })();
+
+  return {
+    /* ctxDefaults.canGoOut の既定値が false のため、「外出できない日」で判定すると
+       初回実行だけで自動的に解錠されてしまう（乗り越えた実感が伴わない）。
+       逆に「外出できる」は既定値ではなく本人が切り替えて初めて成立し、かつ
+       実際に移動を伴う行動を選んで完了する必要があるため、安易には満たされない。 */
+    outdoor:  has(d => d.done===true && d.travel===true),
+    tired:    has(d => d.done===true && d.ctx && d.ctx.energy==='低'),
+    busy:     has(d => d.done===true && d.ctx && d.ctx.availableMin<=5),
+    long:     has(d => d.done===true && d.min>=10),
+    week3,
+    welcomeBack
+  };
+}
+
 function myCards(m, rules){
   const doneTotal = m.all.filter(d=>d.done===true).length;
   const slotRule = ruleByKey(rules,'slot');
@@ -1029,27 +1094,28 @@ function myCards(m, rules){
   })();
   const stableRate = last28.length >= CONFIG.MIN_N_RULE ? rate(last28) : null;
   const allFourKeys = [shortRule, slotRule, notravelRule, catRule].every(Boolean);
+  const oc = overcomeCards(m);
 
-  return [
-    {id:'C01', rarity:'基本', title:'はじめの一歩',
+  const setA = [
+    {id:'C01', rarity:'基本', set:'attack', title:'はじめの一歩',
      desc:'最初の健康行動を実行した', lockedHint:'「できた」を1回押すと解錠',
      unlocked: doneTotal >= 1},
-    {id:'C02', rarity:'レア', title:'短時間の達人',
+    {id:'C02', rarity:'レア', set:'attack', title:'短時間の達人',
      desc: shortRule ? shortRule.desc : '', lockedHint:'所要時間による傾向がわかると解錠',
      unlocked: !!shortRule},
-    {id:'C03', rarity:'レア', title: slotRule ? slotRule.title : '時間帯タイプ',
+    {id:'C03', rarity:'レア', set:'attack', title: slotRule ? slotRule.title : '時間帯タイプ',
      desc: slotRule ? slotRule.desc : '', lockedHint:'合う時間帯がわかると解錠',
      unlocked: !!slotRule},
-    {id:'C04', rarity:'レア', title:'おうち習慣',
+    {id:'C04', rarity:'レア', set:'attack', title:'おうち習慣',
      desc: notravelRule ? notravelRule.desc : '', lockedHint:'移動の有無による傾向がわかると解錠',
      unlocked: !!notravelRule},
-    {id:'C05', rarity:'エピック', title:'7日の芽吹き',
+    {id:'C05', rarity:'エピック', set:'attack', title:'7日の芽吹き',
      desc:'合計7日、健康行動を実行した', lockedHint:`実行 ${doneTotal}/7日`,
      unlocked: doneTotal >= 7},
-    {id:'C06', rarity:'エピック', title:'自分攻略',
+    {id:'C06', rarity:'エピック', set:'attack', title:'自分攻略',
      desc: catRule ? catRule.desc : '', lockedHint:'合う分野がわかると解錠',
      unlocked: !!catRule},
-    {id:'C07', rarity:'エピック', title:'習慣の木',
+    {id:'C07', rarity:'エピック', set:'attack', title:'習慣の木',
      desc: stableRate!==null ? `直近4週の実行率が ${pct(stableRate)} で安定しています。` : '',
      lockedHint:'直近4週の記録が貯まると解錠',
      unlocked: stableRate!==null && stableRate >= CONFIG.PROGRAM_COMPLETION_RATE},
@@ -1057,12 +1123,43 @@ function myCards(m, rules){
        H3b（支援を外すと30日でほぼ元に戻る）と矛盾するため、断定ではなく問いに変更。
        解錠条件も「自立を達成した」ではなく「4つの軸すべてで自分の傾向がわかった」
        という、実際に検証可能な意味に絞っている。 */
-    {id:'C08', rarity:'伝説', title:'自分の攻略法',
+    {id:'C08', rarity:'伝説', set:'attack', title:'自分の攻略法',
      desc:'所要時間・時間帯・移動・分野、4つの条件がわかりました。提案がなくても選べそうか、試してみる番です。',
      lockedHint:'4つの軸すべてで傾向がわかると解錠',
      unlocked: allFourKeys}
   ];
+
+  const setB = [
+    {id:'C09', rarity:'レア', set:'overcome', title:'外に出る一歩',
+     desc:'家の中で終わらせず、外に出る行動を選んで実行できた', lockedHint:'外出を伴う行動を実行すると解錠',
+     unlocked: oc.outdoor},
+    {id:'C10', rarity:'レア', set:'overcome', title:'疲れていても',
+     desc:'体力が低い日にも、一歩を選べた', lockedHint:'体力が低い日に実行すると解錠',
+     unlocked: oc.tired},
+    {id:'C11', rarity:'レア', set:'overcome', title:'忙しい日にも',
+     desc:'空き時間5分以下の日にも、時間をつくり出せた', lockedHint:'空き時間5分以下の日に実行すると解錠',
+     unlocked: oc.busy},
+    {id:'C12', rarity:'レア', set:'overcome', title:'10分の壁を越えて',
+     desc:'10分以上の行動を実行できた', lockedHint:'10分以上の行動を実行すると解錠',
+     unlocked: oc.long},
+    {id:'C13', rarity:'レア', set:'overcome', title:'週3の壁',
+     desc:'7日間のうち3日以上、健康行動を実行できた', lockedHint:'7日間で3日以上の実行が必要',
+     unlocked: oc.week3},
+    {id:'C14', rarity:'レア', set:'overcome', title:'また始められた',
+     desc:'間があいても、また戻ってこられた', lockedHint:'4日以上あけたあと、また実行すると解錠',
+     unlocked: oc.welcomeBack},
+    {id:'C15', rarity:'伝説', set:'overcome', title:'挑戦を越えてきた',
+     desc:'外出不可・低体力・時間不足・長め行動・週3回・再開。6つの壁すべてを、それぞれ一度は越えました。',
+     lockedHint:'このセットの6枚すべてを解錠すると出現',
+     unlocked: [oc.outdoor,oc.tired,oc.busy,oc.long,oc.week3,oc.welcomeBack].every(Boolean)}
+  ];
+
+  return [...setA, ...setB];
 }
+const CARD_SETS = Object.freeze({
+  attack:   {name:'自分の攻略法',   note:'記録から見えてきた、あなたの傾向'},
+  overcome: {name:'乗り越えた記録', note:'その日の条件は不利でも、実行できた記録'}
+});
 
 function weekWindow(){
   const out = [];
@@ -1463,10 +1560,24 @@ function renderProgress(){
   }
 
   // 庭（未実行では絶対に後退しない。実行日数の累計だけで段階が決まる）
+  const rules = derivedRules();
+  // state.rulesSeen（永続記録）だけを見ると、今回の描画で初めて確定したルールが
+  // 反映されず1テンポ遅れる（保存は後段の新規発見判定でまとめて行うため）。
+  // 表示は「これまでの永続記録」と「今まさに確定しているルール」の和集合で行う。
+  const confirmedKeysNow = rules.filter(r=>r.status==='confirmed'||r.status==='inverted').map(r=>r.key);
   const g = gardenStage(m);
   $('gardenNote').textContent = `${g.doneTotal}日実行`;
   const gc = $('gardenCard'); gc.textContent = '';
   const scene = el('div','garden-scene');
+  /* 季節は実カレンダー（Date().getMonth()）で決まる、実データそのもの。
+     ただし演出として出すのは累計30日実行を超えてから（第3段階「若葉」以降）
+     ——「30日継続で季節が解放される」という要望を、捏造なしで満たす表現。 */
+  if(g.doneTotal >= 30){
+    const month = new Date().getMonth()+1;
+    const season = (month>=3&&month<=5) ? 'spring' : (month>=6&&month<=8) ? 'summer'
+                 : (month>=9&&month<=11) ? 'autumn' : 'winter';
+    scene.classList.add('season-'+season);
+  }
   scene.append(el('div','sun'), el('div','hill'), el('div','hill2'));
   const plant = el('div','plant');
   if(g.idx === 0){
@@ -1508,9 +1619,20 @@ function renderProgress(){
   for(let i=0;i<g.total;i++) dots.append(el('div','garden-dot'+(i<=g.idx?' on':'')));
   gc.append(dots);
 
+  // 発見した傾向（新しいFitの発見をレアな一輪として庭に残す）。
+  // state.rulesSeen は一度確定したら消えない永続記録なので、後から差が縮まって
+  // ルールの判定が「差なし」に戻っても、ここでの発見自体は取り消さない。
+  const discoverDefs = [['short','⏱'],['slot','🌙'],['notravel','🏠'],['cat','🎯']];
+  const everSeen = new Set([...(state.rulesSeen || []), ...confirmedKeysNow]);
+  const discover = el('div','garden-discover');
+  discover.append(el('div','lab','発見した傾向'));
+  discoverDefs.forEach(([key,icon])=>{
+    discover.append(el('div','dot'+(everSeen.has(key)?' on':''), icon));
+  });
+  gc.append(discover);
+
   // パターン
   const pl = $('patternList'); pl.textContent='';
-  const rules = derivedRules();
   for(const r of rules){
     const row2 = el('div','insight');
     row2.append(el('div','ico', r.status==='learning' ? '…' : r.icon));
@@ -1532,26 +1654,49 @@ function renderProgress(){
       '時間帯や分野の傾向には、勤務や天候など記録していない他の要因が混ざっている可能性があります。所要時間や移動の有無ほど確実な根拠ではありません。'));
   }
 
-  // わたし図鑑（未達成のカードは、条件を伏せたまま存在だけ見せる）
+  // わたし図鑑（未達成のカードは、条件を伏せたまま存在だけ見せる。セットごとに並べる）
   const cards = myCards(m, rules);
   const unlockedCount = cards.filter(c=>c.unlocked).length;
   $('cardsNote').textContent = `${unlockedCount}/${cards.length}枚`;
   const seenBefore = new Set(state.cardsSeen || []);
   const cg = $('cardsGrid'); cg.textContent = '';
   let newlyUnlocked = false;
-  for(const c of cards){
-    const tile = el('div','mycard ' + (c.unlocked?'unlocked':'locked'));
-    if(c.unlocked && !seenBefore.has(c.id)){ tile.classList.add('justUnlocked'); newlyUnlocked = true; }
-    tile.append(el('div','rarity', c.rarity));
-    tile.append(el('div','ctitle', c.unlocked ? c.title : '？？？'));
-    tile.append(el('div','cdesc', c.unlocked ? c.desc : c.lockedHint));
-    if(!c.unlocked) tile.append(el('div','clock','🔒'));
-    cg.append(tile);
+  for(const setKey of Object.keys(CARD_SETS)){
+    const setCards = cards.filter(c=>c.set===setKey);
+    const setDone = setCards.filter(c=>c.unlocked).length;
+    const head = el('div','set-head');
+    head.append(el('div','set-name', CARD_SETS[setKey].name));
+    head.append(el('div','set-count', `${setDone}/${setCards.length}`));
+    cg.append(head);
+    const row = el('div','card-grid');
+    for(const c of setCards){
+      const tile = el('div','mycard ' + (c.unlocked?'unlocked':'locked'));
+      if(c.unlocked && !seenBefore.has(c.id)){ tile.classList.add('justUnlocked'); newlyUnlocked = true; }
+      tile.append(el('div','rarity', c.rarity));
+      tile.append(el('div','ctitle', c.unlocked ? c.title : '？？？'));
+      tile.append(el('div','cdesc', c.unlocked ? c.desc : c.lockedHint));
+      if(!c.unlocked) tile.append(el('div','clock','🔒'));
+      row.append(tile);
+    }
+    cg.append(row);
   }
   if(newlyUnlocked){
     state.cardsSeen = cards.filter(c=>c.unlocked).map(c=>c.id);
     saveState();
     notify('新しいカードを発見しました 🃏');
+  }
+
+  // 新しい傾向を発見した瞬間（統計的なルールが新規に確定した時）を、庭側でも祝う。
+  // カードとは別に、derivedRules の確定キーの変化そのものを追跡する
+  // （confirmedKeysNow は庭の発見アイコン描画時に既に計算済みのものを再利用）。
+  const rulesSeenBefore = new Set(state.rulesSeen || []);
+  const newRuleKeys = confirmedKeysNow.filter(k=>!rulesSeenBefore.has(k));
+  if(newRuleKeys.length){
+    state.rulesSeen = confirmedKeysNow;
+    saveState();
+    if(!newlyUnlocked){ // カード獲得と同時なら、そちらの通知を優先し重複させない
+      notify('新しい傾向を発見しました 🌸');
+    }
   }
 
   // 体に合わないと伝えた行動（恒久除外）の管理
