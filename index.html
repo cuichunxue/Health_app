@@ -84,6 +84,41 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .avoided-row:last-child{border-bottom:0}
 .avoided-row span{font-size:12px;color:var(--ink2)}
 .avoided-row button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px 12px;font-size:11px;font-weight:800;color:var(--muted);min-height:36px}
+
+/* ---------- garden ---------- */
+.garden-card{padding:18px;display:flex;flex-direction:column;gap:12px}
+.garden-scene{height:140px;border-radius:16px;position:relative;overflow:hidden;background:linear-gradient(160deg,var(--brand-soft),var(--soft))}
+.garden-scene .sun{position:absolute;right:24px;top:18px;width:38px;height:38px;background:#ffd77e;border-radius:50%;box-shadow:0 0 0 10px rgba(255,215,126,.13)}
+.garden-scene .hill{position:absolute;bottom:-50px;width:270px;height:118px;border-radius:50%;background:#9bcea6;left:-60px;opacity:.85}
+.garden-scene .hill2{position:absolute;bottom:-42px;width:236px;height:100px;border-radius:50%;background:#6fb886;right:-104px;opacity:.85}
+.garden-scene .plant{position:absolute;left:50%;bottom:38px;transform:translateX(-50%);transition:transform .3s}
+@media (prefers-reduced-motion:reduce){.garden-scene .plant{transition:none}}
+.garden-scene .plant .stem{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:6px;background:#8a5a34;border-radius:3px}
+.garden-scene .plant .leaf{position:absolute;border-radius:60% 60% 60% 0;background:var(--brand)}
+.garden-scene .plant .fruit{position:absolute;width:9px;height:9px;border-radius:50%;background:#e2a53c}
+.garden-scene .plant .seed{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.garden-stage-name{font-size:15px;font-weight:900}
+.garden-stage-desc{font-size:11.5px;color:var(--muted);line-height:1.7}
+.garden-progress{display:flex;gap:5px}
+.garden-dot{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.garden-dot.on{background:var(--brand)}
+
+/* ---------- わたし図鑑 (cards) ---------- */
+.cards-card{padding:14px}
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.mycard{border-radius:14px;padding:13px;min-height:118px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
+.mycard.locked{background:var(--soft);color:var(--muted)}
+.mycard.unlocked{background:var(--card);box-shadow:var(--shadow)}
+.mycard .rarity{font-size:9px;font-weight:900;letter-spacing:.06em;padding:2px 7px;border-radius:5px;width:fit-content}
+.mycard.unlocked .rarity{background:var(--brand-soft);color:var(--brand-ink)}
+.mycard.locked .rarity{background:var(--line);color:var(--muted)}
+.mycard .ctitle{font-size:13px;font-weight:900;margin-top:2px}
+.mycard.locked .ctitle{color:var(--muted)}
+.mycard .cdesc{font-size:10.5px;line-height:1.6;color:var(--muted);flex:1}
+.mycard .clock{font-size:16px;opacity:.5;margin-top:auto}
+@keyframes cardPop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
+.mycard.justUnlocked{animation:cardPop .3s ease-out}
+@media (prefers-reduced-motion:reduce){.mycard.justUnlocked{animation:none}}
 .kaeru-note{margin-top:12px;background:var(--brand-soft);border-radius:14px;padding:14px 15px;font-size:12px;line-height:1.75;color:var(--brand-ink)}
 .kaeru-note[hidden]{display:none}
 .kaeru-note b{font-weight:900}
@@ -151,7 +186,10 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .empty{padding:22px;text-align:center;color:var(--muted);font-size:11.5px;line-height:1.8}
 .done-state{display:none;text-align:center;padding:6px 0 2px}
 .done-state.show{display:block}
-.done-state .mk{font-size:34px}
+.done-state .mk{font-size:34px;display:inline-block}
+@keyframes markPop{0%{transform:scale(.4);opacity:0}55%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
+.done-state .mk.pop{animation:markPop .5s cubic-bezier(.2,1.4,.4,1)}
+@media (prefers-reduced-motion:reduce){.done-state .mk.pop{animation:none}}
 .done-state p{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.7}
 
 /* ---------- admin console ---------- */
@@ -330,8 +368,16 @@ tr.excluded td:first-child{text-decoration:line-through}
       <div class="card progress-card" id="programCard"></div>
     </div>
     <div class="section">
+      <div class="section-head"><div class="section-title">庭</div><div class="section-note" id="gardenNote"></div></div>
+      <div class="card garden-card" id="gardenCard"></div>
+    </div>
+    <div class="section">
       <div class="section-head"><div class="section-title">続けやすいパターン</div><div class="section-note">記録が貯まると増えます</div></div>
       <div class="card insight-card" id="patternList"></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><div class="section-title">わたし図鑑</div><div class="section-note" id="cardsNote"></div></div>
+      <div class="card cards-card"><div class="card-grid" id="cardsGrid"></div></div>
     </div>
     <div class="section" id="avoidedSection" hidden>
       <div class="section-head"><div class="section-title">体に合わないと伝えた行動</div><div class="section-note">今後の提案から除外中</div></div>
@@ -460,7 +506,8 @@ const DEFAULT_STATE = {
      例えば人工関節が入っている人が「体力:高」と正直に答えると、その日は膝に負担のある
      行動（スクワット等）が候補に入りうる。この一覧に入れた行動IDは、体力設定に関わらず
      Adaptive・Fixed のどちらのアームでも一切候補にしない。安全側の除外であり学習では動かない。 */
-  permanentExclude:[]
+  permanentExclude:[],
+  cardsSeen:[]              // 「わたし図鑑」で既に見た（新着演出を出さない）カードID
 };
 
 function loadState(){
@@ -469,7 +516,8 @@ function loadState(){
     if(!raw) return {...DEFAULT_STATE, days:{}};
     const p = JSON.parse(raw);
     return {...DEFAULT_STATE, ...p, days:p.days||{}, ctxDefaults:{...DEFAULT_STATE.ctxDefaults, ...(p.ctxDefaults||{})},
-            permanentExclude: Array.isArray(p.permanentExclude) ? p.permanentExclude : []};
+            permanentExclude: Array.isArray(p.permanentExclude) ? p.permanentExclude : [],
+            cardsSeen: Array.isArray(p.cardsSeen) ? p.cardsSeen : []};
   }catch(e){
     return {...DEFAULT_STATE, days:{}};
   }
@@ -932,6 +980,90 @@ function metrics(){
           prog, openedDays, missedDays, calendarRate, offerRate, kaeru};
 }
 
+/* ---------- 8b. GARDEN & わたし図鑑 ----------
+   資産パック（TodayOne_Final Asset Pack）の manifest.json をデータ仕様として採用しつつ、
+   視覚化は既存の CSS/SVG デザイン言語で作り直している。理由:
+     1. 提供 PNG は成長段階のラベル（SEED/BLOOM/INDEPENDENT等）が画像に焼き込み済みで、
+        英語のまま・ダークモード非対応（固定の薄緑背景）だった。
+     2. 「自立（Independent）」を最上位段階の名前として掲げると、H3b の実測
+        （支援を外すと30日でほぼ元に戻る）と矛盾する断定になる。段階名は植物の成長を
+        表す言葉に留め、「提案なしでも選べるか」という問いは C08 カード側に切り出し、
+        断定ではなく問いかけの形にした（ユーザーとの合意）。
+     3. bagdes/mascot は cards/garden と実質同じ達成を二重に表現するだけなので、
+        重複するシステムを2つ作らず一本化した。 */
+
+const GARDEN_STAGES = Object.freeze([
+  {min:0,  name:'たね',     desc:'まだ何もしていません。今日の1つから。'},
+  {min:1,  name:'芽',       desc:'最初の一歩が出ました。'},
+  {min:7,  name:'若葉',     desc:'続けた分だけ、育っています。'},
+  {min:21, name:'花',       desc:'ここまで、休んだ日があっても大丈夫。'},
+  {min:45, name:'しげった木', desc:'土台ができてきました。'},
+  {min:90, name:'大樹',     desc:'ここまで積み重ねました。'}
+]);
+/* 未実行でも枯れない：株を「これまでの実行日数の累計」だけで決め、直近の不実行や
+   streak の途切れでは絶対に下げない（資産パックの設計注意1）。 */
+function gardenStage(m){
+  const doneTotal = m.all.filter(d=>d.done===true).length;
+  let stage = GARDEN_STAGES[0], idx = 0;
+  GARDEN_STAGES.forEach((s,i)=>{ if(doneTotal >= s.min){ stage = s; idx = i; } });
+  const next = GARDEN_STAGES[idx+1] || null;
+  return {doneTotal, stage, idx, next, total: GARDEN_STAGES.length};
+}
+
+function ruleByKey(rules, key){
+  return rules.find(r => r.key===key && (r.status==='confirmed' || r.status==='inverted'));
+}
+
+/* カードの解錠条件はすべて、実データ（metrics/derivedRules）から判定する。
+   一度も達成していない条件を「達成した」と表示することはない。 */
+function myCards(m, rules){
+  const doneTotal = m.all.filter(d=>d.done===true).length;
+  const slotRule = ruleByKey(rules,'slot');
+  const shortRule = ruleByKey(rules,'short');
+  const notravelRule = ruleByKey(rules,'notravel');
+  const catRule = ruleByKey(rules,'cat');
+  const last28 = (()=>{
+    const chrono = [...m.adaptive].sort((a,b)=> a.date < b.date ? -1 : 1);
+    const cut = addDays(today(), -27);
+    return chrono.filter(d => d.date >= cut);
+  })();
+  const stableRate = last28.length >= CONFIG.MIN_N_RULE ? rate(last28) : null;
+  const allFourKeys = [shortRule, slotRule, notravelRule, catRule].every(Boolean);
+
+  return [
+    {id:'C01', rarity:'基本', title:'はじめの一歩',
+     desc:'最初の健康行動を実行した', lockedHint:'「できた」を1回押すと解錠',
+     unlocked: doneTotal >= 1},
+    {id:'C02', rarity:'レア', title:'短時間の達人',
+     desc: shortRule ? shortRule.desc : '', lockedHint:'所要時間による傾向がわかると解錠',
+     unlocked: !!shortRule},
+    {id:'C03', rarity:'レア', title: slotRule ? slotRule.title : '時間帯タイプ',
+     desc: slotRule ? slotRule.desc : '', lockedHint:'合う時間帯がわかると解錠',
+     unlocked: !!slotRule},
+    {id:'C04', rarity:'レア', title:'おうち習慣',
+     desc: notravelRule ? notravelRule.desc : '', lockedHint:'移動の有無による傾向がわかると解錠',
+     unlocked: !!notravelRule},
+    {id:'C05', rarity:'エピック', title:'7日の芽吹き',
+     desc:'合計7日、健康行動を実行した', lockedHint:`実行 ${doneTotal}/7日`,
+     unlocked: doneTotal >= 7},
+    {id:'C06', rarity:'エピック', title:'自分攻略',
+     desc: catRule ? catRule.desc : '', lockedHint:'合う分野がわかると解錠',
+     unlocked: !!catRule},
+    {id:'C07', rarity:'エピック', title:'習慣の木',
+     desc: stableRate!==null ? `直近4週の実行率が ${pct(stableRate)} で安定しています。` : '',
+     lockedHint:'直近4週の記録が貯まると解錠',
+     unlocked: stableRate!==null && stableRate >= CONFIG.PROGRAM_COMPLETION_RATE},
+    /* C08: 資産パック原案は「提案なしでも自分で選べる」という達成の断定だった。
+       H3b（支援を外すと30日でほぼ元に戻る）と矛盾するため、断定ではなく問いに変更。
+       解錠条件も「自立を達成した」ではなく「4つの軸すべてで自分の傾向がわかった」
+       という、実際に検証可能な意味に絞っている。 */
+    {id:'C08', rarity:'伝説', title:'自分の攻略法',
+     desc:'所要時間・時間帯・移動・分野、4つの条件がわかりました。提案がなくても選べそうか、試してみる番です。',
+     lockedHint:'4つの軸すべてで傾向がわかると解錠',
+     unlocked: allFourKeys}
+  ];
+}
+
 function weekWindow(){
   const out = [];
   const now = new Date();
@@ -1330,6 +1462,52 @@ function renderProgress(){
       `経過 ${ps.elapsed}日のうち実行 ${ps.doneDays}日（${pct(m.calendarRate)}）。うち ${m.missedDays}日はアプリを開いていません。`));
   }
 
+  // 庭（未実行では絶対に後退しない。実行日数の累計だけで段階が決まる）
+  const g = gardenStage(m);
+  $('gardenNote').textContent = `${g.doneTotal}日実行`;
+  const gc = $('gardenCard'); gc.textContent = '';
+  const scene = el('div','garden-scene');
+  scene.append(el('div','sun'), el('div','hill'), el('div','hill2'));
+  const plant = el('div','plant');
+  if(g.idx === 0){
+    // たね: 地面に小さな種があるだけ。茎も葉もまだない。
+    plant.append(el('div','seed'));
+  }else{
+    // 段階が進むほど、幹が伸び・葉が増える。5段階目以降は実が付く。
+    // 葉は「幹の先端を中心に円形に集まる」座標系（dx,dyともleafSize基準の倍率）で置き、
+    // 段階に関わらず葉の下端が幹の先端に必ず接するようにする
+    // （旧実装は dy=0 のとき葉の中心を幹先端に置いていたため、葉が幹から浮いて見えた）。
+    // シーン枠(140px, overflow:hidden)に収まる範囲でサイズも決めている
+    // （最終段階の葉の上端が枠上端で切れる不具合を実測して調整した値）。
+    const stemH = 6 + g.idx*6;
+    const stem = el('div','stem'); stem.style.height = stemH+'px';
+    plant.append(stem);
+    const leafSize = 13 + g.idx*4;
+    const canopy = [[0,0.5],[-0.55,0.35],[0.55,0.35],[-0.3,0.95],[0.3,0.95]].slice(0, g.idx);
+    canopy.forEach(([dx,dy])=>{
+      const leaf = el('div','leaf');
+      leaf.style.width = leafSize+'px'; leaf.style.height = leafSize+'px';
+      leaf.style.left = `calc(50% + ${dx*leafSize - leafSize/2}px)`;
+      leaf.style.bottom = `${stemH + dy*leafSize - leafSize/2}px`;
+      plant.append(leaf);
+    });
+    if(g.idx >= 4){
+      [[-6,4],[7,10],[0,16]].forEach(([dx,dy])=>{
+        const fr = el('div','fruit');
+        fr.style.left = `calc(50% + ${dx}px)`; fr.style.bottom = `${stemH+dy}px`;
+        plant.append(fr);
+      });
+    }
+  }
+  scene.append(plant);
+  gc.append(scene);
+  gc.append(el('div','garden-stage-name', `${g.stage.name}（${g.idx+1}/${g.total}段階）`));
+  gc.append(el('div','garden-stage-desc',
+    g.next ? `${g.stage.desc} 次の段階まで、あと実行 ${g.next.min - g.doneTotal} 日。` : g.stage.desc));
+  const dots = el('div','garden-progress');
+  for(let i=0;i<g.total;i++) dots.append(el('div','garden-dot'+(i<=g.idx?' on':'')));
+  gc.append(dots);
+
   // パターン
   const pl = $('patternList'); pl.textContent='';
   const rules = derivedRules();
@@ -1352,6 +1530,28 @@ function renderProgress(){
   if(confoundRisk){
     pl.append(el('div','microcopy',
       '時間帯や分野の傾向には、勤務や天候など記録していない他の要因が混ざっている可能性があります。所要時間や移動の有無ほど確実な根拠ではありません。'));
+  }
+
+  // わたし図鑑（未達成のカードは、条件を伏せたまま存在だけ見せる）
+  const cards = myCards(m, rules);
+  const unlockedCount = cards.filter(c=>c.unlocked).length;
+  $('cardsNote').textContent = `${unlockedCount}/${cards.length}枚`;
+  const seenBefore = new Set(state.cardsSeen || []);
+  const cg = $('cardsGrid'); cg.textContent = '';
+  let newlyUnlocked = false;
+  for(const c of cards){
+    const tile = el('div','mycard ' + (c.unlocked?'unlocked':'locked'));
+    if(c.unlocked && !seenBefore.has(c.id)){ tile.classList.add('justUnlocked'); newlyUnlocked = true; }
+    tile.append(el('div','rarity', c.rarity));
+    tile.append(el('div','ctitle', c.unlocked ? c.title : '？？？'));
+    tile.append(el('div','cdesc', c.unlocked ? c.desc : c.lockedHint));
+    if(!c.unlocked) tile.append(el('div','clock','🔒'));
+    cg.append(tile);
+  }
+  if(newlyUnlocked){
+    state.cardsSeen = cards.filter(c=>c.unlocked).map(c=>c.id);
+    saveState();
+    notify('新しいカードを発見しました 🃏');
   }
 
   // 体に合わないと伝えた行動（恒久除外）の管理
@@ -1396,6 +1596,12 @@ $('hardBtn').onclick = ()=> show('change');
 $('doneBtn').onclick = ()=>{
   recordOutcome(true, null);
   renderToday();
+  // チェックマークの一度きりの演出。renderToday() は他の操作（文脈変更など）でも
+  // 呼ばれるため、クリック直後だけ再生してそのまま除去する（毎回の再描画で
+  // 再生されないように）。
+  const mk = $('doneMark');
+  mk.classList.add('pop');
+  setTimeout(()=>mk.classList.remove('pop'), 550);
   notify('今日の一歩を記録しました ✓');
 };
 $('undoBtn').onclick = ()=>{
