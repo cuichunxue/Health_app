@@ -126,13 +126,14 @@ h1{font-size:27px;line-height:1.3;letter-spacing:-.6px;margin:10px 0 6px}
 .mycard{border-radius:14px;padding:13px;min-height:118px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)}
 .mycard.locked{background:var(--soft);color:var(--muted)}
 .mycard.unlocked{background:var(--card);box-shadow:var(--shadow)}
+.mycard .cglyph{font-size:22px;line-height:1}
+.mycard.locked .cglyph{opacity:.5}
 .mycard .rarity{font-size:9px;font-weight:900;letter-spacing:.06em;padding:2px 7px;border-radius:5px;width:fit-content}
 .mycard.unlocked .rarity{background:var(--brand-soft);color:var(--brand-ink)}
 .mycard.locked .rarity{background:var(--line);color:var(--muted)}
 .mycard .ctitle{font-size:13px;font-weight:900;margin-top:2px}
 .mycard.locked .ctitle{color:var(--muted)}
 .mycard .cdesc{font-size:10.5px;line-height:1.6;color:var(--muted);flex:1}
-.mycard .clock{font-size:16px;opacity:.5;margin-top:auto}
 @keyframes cardPop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
 .mycard.justUnlocked{animation:cardPop .3s ease-out}
 @media (prefers-reduced-motion:reduce){.mycard.justUnlocked{animation:none}}
@@ -1116,25 +1117,25 @@ function myCards(m, rules){
   const oc = overcomeCards(m);
 
   const setA = [
-    {id:'C01', rarity:'基本', set:'attack', title:'はじめの一歩',
+    {id:'C01', rarity:'基本', set:'attack', title:'はじめの一歩', glyph:'👣',
      desc:'最初の健康行動を実行した', lockedHint:'「できた」を1回押すと解錠',
      unlocked: doneTotal >= 1},
-    {id:'C02', rarity:'レア', set:'attack', title:'短時間の達人',
+    {id:'C02', rarity:'レア', set:'attack', title:'短時間の達人', glyph:'⏱️',
      desc: shortRule ? shortRule.desc : '', lockedHint:'所要時間による傾向がわかると解錠',
      unlocked: !!shortRule},
-    {id:'C03', rarity:'レア', set:'attack', title: slotRule ? slotRule.title : '時間帯タイプ',
+    {id:'C03', rarity:'レア', set:'attack', title: slotRule ? slotRule.title : '時間帯タイプ', glyph:'🌙',
      desc: slotRule ? slotRule.desc : '', lockedHint:'合う時間帯がわかると解錠',
      unlocked: !!slotRule},
-    {id:'C04', rarity:'レア', set:'attack', title:'おうち習慣',
+    {id:'C04', rarity:'レア', set:'attack', title:'おうち習慣', glyph:'🏠',
      desc: notravelRule ? notravelRule.desc : '', lockedHint:'移動の有無による傾向がわかると解錠',
      unlocked: !!notravelRule},
-    {id:'C05', rarity:'エピック', set:'attack', title:'7日の芽吹き',
+    {id:'C05', rarity:'エピック', set:'attack', title:'7日の芽吹き', glyph:'🌿',
      desc:'合計7日、健康行動を実行した', lockedHint:`実行 ${doneTotal}/7日`,
      unlocked: doneTotal >= 7},
-    {id:'C06', rarity:'エピック', set:'attack', title:'自分攻略',
+    {id:'C06', rarity:'エピック', set:'attack', title:'自分攻略', glyph:'🎯',
      desc: catRule ? catRule.desc : '', lockedHint:'合う分野がわかると解錠',
      unlocked: !!catRule},
-    {id:'C07', rarity:'エピック', set:'attack', title:'習慣の木',
+    {id:'C07', rarity:'エピック', set:'attack', title:'習慣の木', glyph:'🌳',
      desc: stableRate!==null ? `直近4週の実行率が ${pct(stableRate)} で安定しています。` : '',
      lockedHint:'直近4週の記録が貯まると解錠',
      unlocked: stableRate!==null && stableRate >= CONFIG.PROGRAM_COMPLETION_RATE},
@@ -1142,32 +1143,32 @@ function myCards(m, rules){
        H3b（支援を外すと30日でほぼ元に戻る）と矛盾するため、断定ではなく問いに変更。
        解錠条件も「自立を達成した」ではなく「4つの軸すべてで自分の傾向がわかった」
        という、実際に検証可能な意味に絞っている。 */
-    {id:'C08', rarity:'伝説', set:'attack', title:'自分の攻略法',
+    {id:'C08', rarity:'伝説', set:'attack', title:'自分の攻略法', glyph:'🏆',
      desc:'所要時間・時間帯・移動・分野、4つの条件がわかりました。提案がなくても選べそうか、試してみる番です。',
      lockedHint:'4つの軸すべてで傾向がわかると解錠',
      unlocked: allFourKeys}
   ];
 
   const setB = [
-    {id:'C09', rarity:'レア', set:'overcome', title:'外に出る一歩',
+    {id:'C09', rarity:'レア', set:'overcome', title:'外に出る一歩', glyph:'🚶',
      desc:'家の中で終わらせず、外に出る行動を選んで実行できた', lockedHint:'外出を伴う行動を実行すると解錠',
      unlocked: oc.outdoor},
-    {id:'C10', rarity:'レア', set:'overcome', title:'疲れていても',
+    {id:'C10', rarity:'レア', set:'overcome', title:'疲れていても', glyph:'😮‍💨',
      desc:'体力が低い日にも、一歩を選べた', lockedHint:'体力が低い日に実行すると解錠',
      unlocked: oc.tired},
-    {id:'C11', rarity:'レア', set:'overcome', title:'忙しい日にも',
+    {id:'C11', rarity:'レア', set:'overcome', title:'忙しい日にも', glyph:'🏃',
      desc:'空き時間5分以下の日にも、時間をつくり出せた', lockedHint:'空き時間5分以下の日に実行すると解錠',
      unlocked: oc.busy},
-    {id:'C12', rarity:'レア', set:'overcome', title:'10分の壁を越えて',
+    {id:'C12', rarity:'レア', set:'overcome', title:'10分の壁を越えて', glyph:'💪',
      desc:'10分以上の行動を実行できた', lockedHint:'10分以上の行動を実行すると解錠',
      unlocked: oc.long},
-    {id:'C13', rarity:'レア', set:'overcome', title:'週3の壁',
+    {id:'C13', rarity:'レア', set:'overcome', title:'週3の壁', glyph:'📅',
      desc:'7日間のうち3日以上、健康行動を実行できた', lockedHint:'7日間で3日以上の実行が必要',
      unlocked: oc.week3},
-    {id:'C14', rarity:'レア', set:'overcome', title:'また始められた',
+    {id:'C14', rarity:'レア', set:'overcome', title:'また始められた', glyph:'🔄',
      desc:'間があいても、また戻ってこられた', lockedHint:'4日以上あけたあと、また実行すると解錠',
      unlocked: oc.welcomeBack},
-    {id:'C15', rarity:'伝説', set:'overcome', title:'挑戦を越えてきた',
+    {id:'C15', rarity:'伝説', set:'overcome', title:'挑戦を越えてきた', glyph:'🏅',
      desc:'外出不可・低体力・時間不足・長め行動・週3回・再開。6つの壁すべてを、それぞれ一度は越えました。',
      lockedHint:'このセットの6枚すべてを解錠すると出現',
      unlocked: [oc.outdoor,oc.tired,oc.busy,oc.long,oc.week3,oc.welcomeBack].every(Boolean)}
@@ -1852,10 +1853,12 @@ function renderProgress(){
     for(const c of setCards){
       const tile = el('div','mycard ' + (c.unlocked?'unlocked':'locked'));
       if(c.unlocked && !seenBefore.has(c.id)){ tile.classList.add('justUnlocked'); newlyUnlocked = true; }
+      // ロック中は絵柄も伏せる（絵柄だけで中身が推測できてしまうと「発見」の
+      // 驚きが薄れるため）。解錠後だけ、そのカードのテーマに合う絵文字を出す。
+      tile.append(el('div','cglyph', c.unlocked ? c.glyph : '🔒'));
       tile.append(el('div','rarity', c.rarity));
       tile.append(el('div','ctitle', c.unlocked ? c.title : '？？？'));
       tile.append(el('div','cdesc', c.unlocked ? c.desc : c.lockedHint));
-      if(!c.unlocked) tile.append(el('div','clock','🔒'));
       row.append(tile);
     }
     cg.append(row);
