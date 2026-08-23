@@ -1189,7 +1189,8 @@ function discoverySnapshot(){
   const cards = myCards(m, rules);
   return {
     unlockedIds: cards.filter(c=>c.unlocked).map(c=>c.id),
-    cardsById: Object.fromEntries(cards.map(c=>[c.id, c]))
+    cardsById: Object.fromEntries(cards.map(c=>[c.id, c])),
+    ruleStatus: Object.fromEntries(rules.map(r=>[r.key, r.status]))
   };
 }
 function todaysDiscovery(beforeSnap){
@@ -1204,7 +1205,20 @@ function todaysDiscovery(beforeSnap){
     const c = after.cardsById[newIds[0]];
     return {kind:'card', card:c, extra: newIds.length>1 ? newIds.length-1 : 0};
   }
+
   const rules = derivedRules();
+  // 「学習中」だった軸が今回はじめて答えを出した（確定・逆転・差なし、いずれでも）場合は、
+  // カードにならなくても本物の発見なので、その場で伝える。1ヶ月分のシミュレーションで
+  // 見つけた不具合: これをせず「あと1回」の残数だけで判定していると、カウントダウンが
+  // 0になった瞬間に無言で次の軸へ付け替わり、「あと1回」を何度見せても答えが返ってこない
+  // まま繰り返す（実質、果たされない約束になる）。
+  const beforeStatus = beforeSnap.ruleStatus || {};
+  const resolvedNow = rules.filter(r => beforeStatus[r.key]==='learning' && r.status!=='learning');
+  if(resolvedNow.length){
+    const r = resolvedNow[0];
+    return {kind:'rule', rule:r, extra: resolvedNow.length>1 ? resolvedNow.length-1 : 0};
+  }
+
   let closest = null;
   for(const r of rules){
     if(r.status !== 'learning') continue;
@@ -1212,6 +1226,10 @@ function todaysDiscovery(beforeSnap){
     if(remain > 0 && (closest===null || remain < closest.remain)) closest = {remain};
   }
   if(closest && closest.remain <= 3) return {kind:'progress', remain: closest.remain};
+  // 4軸すべてに答えが出た後（確定・逆転・差なしのどれであっても）は、続けても
+  // この仕組みからはもう何も出てこない。「記録が育っています」を出し続けるのは
+  // 事実と違うので、確認済みであることを正直に伝える。
+  if(rules.length && rules.every(r=>r.status!=='learning')) return {kind:'settled'};
   return {kind:'none'};
 }
 function renderDiscoveryPanel(el_, disc, {fresh}={}){
@@ -1227,12 +1245,25 @@ function renderDiscoveryPanel(el_, disc, {fresh}={}){
     body.append(el('div','dptext', `《${disc.card.title}》${disc.card.desc}`+
       (disc.extra ? `　ほか${disc.extra}枚` : '')));
     el_.append(icon, body);
+  }else if(disc.kind === 'rule'){
+    el_.classList.add('dp-card');
+    const icon = el('div','dpicon', '🔍');
+    const body = el('div','dpbody');
+    body.append(el('div','dplabel','今日の発見'));
+    body.append(el('div','dptext', disc.rule.desc + (disc.extra ? `　ほか${disc.extra}件` : '')));
+    el_.append(icon, body);
   }else if(disc.kind === 'progress'){
     el_.classList.add('dp-progress');
     const body = el('div','dpbody');
     body.append(el('div','dplabel','今日の発見'));
     body.append(el('div','dptext', `データが集まってきました。あと${disc.remain}回で、新しい傾向がわかるかもしれません。`));
     el_.append(el('div','dpicon','🔍'), body);
+  }else if(disc.kind === 'settled'){
+    el_.classList.add('dp-plain');
+    const body = el('div','dpbody');
+    body.append(el('div','dplabel','今日の発見'));
+    body.append(el('div','dptext','所要時間・時間帯・移動・分野は、今のところすべて確認済みです。新しい行動を試すと、わたし図鑑に新しいカードが増えることがあります。'));
+    el_.append(el('div','dpicon','📖'), body);
   }else{
     el_.classList.add('dp-plain');
     const body = el('div','dpbody');
