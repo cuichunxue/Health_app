@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "format": "WAV PCM mono 16-bit",
+  "sample_rate": 44100,
+  "files": [
+    "01_done_soft.wav",
+    "02_discovery.wav",
+    "03_card_unlock.wav",
+    "04_garden_growth.wav",
+    "05_adapt_change.wav",
+    "06_welcome_back.wav"
+  ]
+}
