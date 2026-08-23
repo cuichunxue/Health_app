@@ -1112,7 +1112,24 @@ function myCards(m, rules){
     const cut = addDays(today(), -27);
     return chrono.filter(d => d.date >= cut);
   })();
-  const stableRate = last28.length >= CONFIG.MIN_N_RULE ? rate(last28) : null;
+  /* 「直近4週の実行率が…で安定しています」と言うには、4週という観測期間が実在して
+     いなければならない。以前はサンプル数（5件）だけを条件にしていたため、利用7日目・
+     記録5日の時点で「直近4週の実行率が100%で安定しています」と断定していた（実測）。
+     28日という言葉を使う以上、その期間を実際に観測していることを必須にする。
+     判定の根拠は state.startDate（自己申告の開始印）ではなく、実際に残っている最古の
+     記録日からの経過日数にする。startDate だけに頼ると、記録が90日分あってもその印が
+     欠けているだけで永久に解錠されない（回帰テストで検出）。 */
+  const observedDays = (()=>{
+    const keys = Object.keys(state.days);
+    const first = keys.length ? keys.sort()[0] : state.startDate;
+    if(!first) return 0;
+    const [fy,fm,fd] = first.split('-').map(Number);
+    const [ty,tm,td] = today().split('-').map(Number);
+    const span = Math.floor((new Date(ty,tm-1,td) - new Date(fy,fm-1,fd))/86400000);
+    return Math.max(0, span) + 1;   // 初日も1日と数える
+  })();
+  const stableRate = (observedDays >= 28 && last28.length >= CONFIG.MIN_N_RULE)
+    ? rate(last28) : null;
   const allFourKeys = [shortRule, slotRule, notravelRule, catRule].every(Boolean);
   const oc = overcomeCards(m);
 
@@ -1137,7 +1154,11 @@ function myCards(m, rules){
      unlocked: !!catRule},
     {id:'C07', rarity:'エピック', set:'attack', title:'習慣の木', glyph:'🌳',
      desc: stableRate!==null ? `直近4週の実行率が ${pct(stableRate)} で安定しています。` : '',
-     lockedHint:'直近4週の記録が貯まると解錠',
+     lockedHint: observedDays < 28
+       ? `4週間の記録が貯まると判定（${observedDays}/28日）`
+       : last28.length < CONFIG.MIN_N_RULE
+         ? '直近4週の記録がもう少し必要です'
+         : `直近4週の実行率は ${pct(rate(last28))}（${pct(CONFIG.PROGRAM_COMPLETION_RATE)}以上で解錠）`,
      unlocked: stableRate!==null && stableRate >= CONFIG.PROGRAM_COMPLETION_RATE},
     /* C08: 資産パック原案は「提案なしでも自分で選べる」という達成の断定だった。
        H3b（支援を外すと30日でほぼ元に戻る）と矛盾するため、断定ではなく問いに変更。
@@ -1905,11 +1926,19 @@ function renderProgress(){
 }
 function weeklyRates(n){
   const out = [];
+  /* 「今週」の意味を、今日の画面（weekWindow：月曜始まりの暦週）と揃える。
+     以前は今日から遡るローリング7日窓で集計していたため、同じ「今週」という言葉が
+     2つの画面で別の期間を指していた（金曜時点で 今日の画面=7/6〜7/12、
+     進捗画面=7/4〜7/10。実測で確認）。暦週に統一する。
+     暦週にすると今週は途中までしか埋まらないが、率は必ず母数（・N日）を併記し、
+     母数3日未満の週は薄く描画するため、少ない母数の週が誤読される作りにはならない。 */
+  const dow = dowOf(today());
+  const monday = addDays(today(), dow===0 ? -6 : 1-dow);
   for(let w=n-1; w>=0; w--){
+    const start = addDays(monday, -w*7);
     const list = [];
     for(let i=0;i<7;i++){
-      const k = addDays(today(), -(w*7 + i));
-      const r = state.days[k];
+      const r = state.days[addDays(start, i)];
       if(r && r.arm==='adaptive' && r.done!==null) list.push(r);
     }
     out.push({label: w===0 ? '今週' : `${w}週前`, n:list.length, r: rate(list) ?? 0});
