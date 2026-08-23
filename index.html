@@ -2066,6 +2066,12 @@ function weeklyRates(n){
 }
 
 /* ---------- 10. EVENT WIRING ---------- */
+/* iOS Safari は、タッチを受ける気配のない要素では :active をタップで発火させない。
+   何もしない touchstart を1つ置くだけでタップ時に :active が効くようになる。
+   これがないと、上で入れた押下フィードバックが iPhone でだけ働かない
+   （この環境のChromiumでは再現できないため、実機で確認が必要な箇所）。
+   passive にしてスクロール性能には影響させない。 */
+document.addEventListener('touchstart', ()=>{}, {passive:true});
 document.querySelectorAll('.nav').forEach(n=> n.onclick = ()=> show(n.dataset.screen));
 /* 開閉ボタンは、開いているかどうかを aria-expanded でも伝える
    （画面上は下に箱が出るので見て分かるが、読み上げでは分からないため）。 */
